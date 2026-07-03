@@ -115,7 +115,7 @@ declaration:
   members=newline_list(member, KW_END)
     { Rbs.Decl (name, sup, members) } 
 
-member:
+member: (* TODO: intersection method types *)
   | KW_DEF f=IDENT COLON t=fun_ty             { Rbs.MemMeth (f, t) }
   | KW_DEF KW_INITIALIZE COLON t=fun_ty       { Rbs.MemInit t }
   | KW_DEF KW_SELF DOT f=IDENT COLON t=fun_ty { Rbs.MemClassMeth (f, t) }

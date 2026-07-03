@@ -43,7 +43,7 @@ module Rbs = struct
     | TyInteger
     | TySelf
     | TyNil
-    | TyBot
+    | TyBot (* TODO: top *)
     | TyLit of lit
     | TyClass of class_name
     | TyOr of ty * ty
@@ -56,7 +56,7 @@ module Rbs = struct
 
     type decl = Decl of class_name * class_name option * member list
     and member =
-      | MemMeth of fun_name * ty
+      | MemMeth of fun_name * ty (* TODO: intersection method types *)
       | MemInit of ty
       | MemClassMeth of fun_name * ty
       | MemAttr of var_name * ty
