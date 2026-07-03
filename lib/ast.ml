@@ -45,7 +45,9 @@ module Rbs = struct
     | TyNil
     | TyBot
     | TyLit of lit
+    | TyClass of class_name
     | TyOr of ty * ty
+    | TyAnd of ty * ty
     | TyMethAnd of ty * ty
     | TyFun of fun_ty
     | TyNot of ty

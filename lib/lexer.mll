@@ -30,8 +30,13 @@ rule token = parse
   | '<'               { LT }
   | '.'               { DOT }
   | '@'               { AT }
+  | '|'               { BAR }
+  | '&'               { AMP }
+  | '~'               { TILDE }
+  | '%'               { PERCENT }
+  | ':'               { COLON }
+  | "->"              { ARROW }
 (*| ';'               { SEQ }*)
-(*| ':'               { COLON }*)
 (*| ','               { COMMA }*)
 (*| '"'               { string "" lexbuf }*)
   | '#'               { comment lexbuf; token lexbuf }
@@ -48,6 +53,9 @@ rule token = parse
   | "then"            { KW_THEN }
   | "else"            { KW_ELSE }
   | "return"          { KW_RETURN }
+  | "Integer"         { KW_INTEGER }
+  | "Symbol"          { KW_SYMBOL }
+  | "bot"             { KW_BOT }
   | ':' (ident as s)  { SYMBOL s }
   | ident as i        { IDENT i }
   | constr as i       { CLASS_IDENT i }

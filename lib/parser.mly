@@ -15,6 +15,9 @@ open Ast
 %token KW_FALSE
 %token KW_IF KW_THEN KW_ELSE
 %token KW_RETURN
+%token KW_INTEGER
+%token KW_SYMBOL
+%token KW_BOT
 %token EOF
 %token <string> CLASS_IDENT
 %token <string> IDENT
@@ -26,10 +29,22 @@ open Ast
 %token DOT
 %token AT
 %token EQ
+%token AMP
+%token BAR
+%token TILDE
+%token PERCENT
+%token COLON
+%token ARROW
 
 %right KW_RETURN
 %right EQ
 %left DOT
+
+%right ARROW
+%right PERCENT
+%right BAR
+%right AMP
+%right TILDE
 
 %start <Ruby.program> rb_program
 %start <Rbs.program> rbs_program
@@ -37,6 +52,7 @@ open Ast
 
 %%
 
+(* Ruby *)
 rb_program: p=newline_list(stmt, EOF) { p }
 
 stmt:
@@ -86,12 +102,42 @@ if_sep:
   | KW_THEN {}
 
 lit:
-  | i=INT { LitNum i }
-  | KW_FALSE { LitFalse }
-  | KW_TRUE { LitTrue }
-  | s=SYMBOL { LitSym s }
+  | i=INT     { LitNum i }
+  | KW_FALSE  { LitFalse }
+  | KW_TRUE   { LitTrue }
+  | s=SYMBOL  { LitSym s }
 
-rbs_program: EOF { [] }
+(* RBS *)
+rbs_program: p=newline_list(declaration, EOF) { p }
+
+declaration:
+  KW_CLASS name=CLASS_IDENT sup=option(LT sup=CLASS_IDENT { sup })
+  members=newline_list(member, KW_END)
+    { Rbs.Decl (name, sup, members) } 
+
+member:
+  | KW_DEF f=IDENT COLON t=fun_ty             { Rbs.MemMeth (f, t) }
+  | KW_DEF KW_INITIALIZE COLON t=fun_ty       { Rbs.MemInit t }
+  | KW_DEF KW_SELF DOT f=IDENT COLON t=fun_ty { Rbs.MemClassMeth (f, t) }
+  | AT x=IDENT COLON t=ty                     { Rbs.MemAttr (x, t) }  
+
+ty:
+  | LPAREN t=ty RPAREN  { t }
+  | KW_SYMBOL           { Rbs.TySymbol }
+  | KW_INTEGER          { Rbs.TyInteger }
+  | KW_SELF             { Rbs.TySelf }
+  | KW_NIL              { Rbs.TyNil }
+  | KW_BOT              { Rbs.TyBot }
+  | l=lit               { Rbs.TyLit l }
+  | c=CLASS_IDENT       { Rbs.TyClass c }
+  | t1=ty BAR t2=ty     { Rbs.TyOr (t1, t2) }
+  | t1=ty AMP t2=ty     { Rbs.TyAnd (t1, t2) }
+  | t1=ty PERCENT t2=ty { Rbs.TyMethAnd (t1, t2) }
+  | f=fun_ty            { f }
+  | TILDE t=ty          { Rbs.TyNot t }
+
+fun_ty:
+  LPAREN t=ty RPAREN ARROW u=ty { Rbs.TyFun (t, u) }
 
 (* utils *)
 newline_list(X, END):

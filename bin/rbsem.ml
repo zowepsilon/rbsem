@@ -4,6 +4,7 @@ let arg_params = []
 
 let ok = ref true
 let exit () = if !ok then exit 0 else exit 255
+let fail () = ok := false; exit ()
 
 type 'a rule = (Lexing.lexbuf -> Parser.token) -> Lexing.lexbuf -> 'a
 
@@ -21,28 +22,38 @@ let syntax_error_message (lexbuf : Lexing.lexbuf) : string =
     ^ string_of_int start.pos_lnum
     ^ ", column " ^ string_of_int start_col ^ "."
 
-let parse_with (rule : 'a rule) (chan : in_channel) (filename : string) :
-    'a option =
+let parse_with (rule : 'a rule) (chan : in_channel) (filename : string) : 'a =
   let lexbuf = Lexing.from_channel chan in
   Lexing.set_filename lexbuf filename;
-  try Some (rule Lexer.token lexbuf)
+  try rule Lexer.token lexbuf
   with Parser.Error ->
     printerr "Syntax error" (syntax_error_message lexbuf);
-    None
+    fail ()
 
-let run_file (filename : string) : unit =
-  let chan = open_in filename in
-  match parse_with Parser.rb_program chan filename with
-  | None -> ok := false
-  | Some program -> 
-      print_endline (Ast.Ruby.show_program program);
-      exit ()
+let run_file (root : string) : unit =
+  let rb_file = root ^ ".rb" in
+  let rbs_file = root ^ ".rbs" in
+  let rb_chan = open_in rb_file in
+  let rbs_chan = open_in rbs_file in
+  let rb_program = parse_with Parser.rb_program rb_chan rb_file in
+  let rbs_program = parse_with Parser.rbs_program rbs_chan rbs_file in
+  print_endline (Ast.Ruby.show_program rb_program);
+  print_endline (Ast.Rbs.show_program rbs_program);
+  exit ()
 
 let run () =
   let filename = ref "" in
   Arg.parse arg_params (fun s -> filename := s) "";
-  if !filename = "" then printerr "no file provided" "please provide a file"
-  else run_file !filename
+  let filename = !filename in
+  if filename = "" then (printerr "no file provided" "please provide a file"; fail ());
+  let root =
+    if String.ends_with ~suffix:".rb" filename
+    then String.sub filename 0 (String.length filename - 3)
+    else if String.ends_with ~suffix:".rbs" filename
+    then String.sub filename 0 (String.length filename - 4)
+    else (printerr "wrong file type" "file must be in .rb or .rbs"; fail ())
+  in
+  run_file root
 
 let () =
   run ();

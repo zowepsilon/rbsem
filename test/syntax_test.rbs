@@ -1,0 +1,6 @@
+class A
+    def f: (Integer) -> Integer | Symbol
+    def self.g: (Int) -> (A % B & C)
+    @hello: true
+    def initialize: (self) -> ~bot
+end
