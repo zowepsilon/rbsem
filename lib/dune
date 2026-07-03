@@ -1,0 +1,15 @@
+(library
+ (name rbsem)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.eq)))
+
+(ocamllex lexer)
+
+(menhir
+ (flags --dump)
+ (modules parser))
+
+(env
+ (dev
+  (flags
+   (:standard -warn-error -a))))

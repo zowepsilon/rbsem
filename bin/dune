@@ -1,0 +1,3 @@
+(executable
+ (name rbsem)
+ (libraries rbsem))
