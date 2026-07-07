@@ -22,9 +22,10 @@ let syntax_error_message (lexbuf : Lexing.lexbuf) : string =
     ^ string_of_int start.pos_lnum
     ^ ", column " ^ string_of_int start_col ^ "."
 
-let parse_with (rule : 'a rule) (chan : in_channel) (filename : string) : 'a =
+let parse_with (rule : 'a rule) (ignore_newlines: bool) (chan : in_channel) (filename : string) : 'a =
   let lexbuf = Lexing.from_channel chan in
   Lexing.set_filename lexbuf filename;
+  Lexer.ignore_newlines := ignore_newlines;
   try rule Lexer.token lexbuf
   with Parser.Error ->
     printerr "Syntax error" (syntax_error_message lexbuf);
@@ -35,8 +36,8 @@ let run_file (root : string) : unit =
   let rbs_file = root ^ ".rbs" in
   let rb_chan = open_in rb_file in
   let rbs_chan = open_in rbs_file in
-  let rb_program = parse_with Parser.rb_program rb_chan rb_file in
-  let rbs_program = parse_with Parser.rbs_program rbs_chan rbs_file in
+  let rb_program = parse_with Parser.rb_program false rb_chan rb_file in
+  let rbs_program = parse_with Parser.rbs_program true rbs_chan rbs_file in
   print_endline (Ast.Ruby.show_program rb_program);
   print_endline (Ast.Rbs.show_program rbs_program);
   exit ()

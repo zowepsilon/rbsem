@@ -10,6 +10,8 @@ let update_loc lexbuf ~lines ~chars =
     pos_lnum = pos.pos_lnum + lines;
     pos_bol = pos.pos_cnum - chars;
   }
+
+let ignore_newlines = ref false
 }
 
 let start_digit = ['0'-'9']
@@ -23,7 +25,7 @@ let constr = ['A'-'Z'] ['a'-'z' 'A'-'Z' '_' '0'-'9' '\'' ]*
 
 rule token = parse
   | [' ' '\t']        { token lexbuf }
-  | '\n'+ as n        { update_loc lexbuf ~lines:(String.length n) ~chars:0; NEWLINE }
+  | '\n'              { if !ignore_newlines then token lexbuf else (update_loc lexbuf ~lines:1 ~chars:0; NEWLINE) }
   | '('               { LPAREN }
   | ')'               { RPAREN }
   | '='               { EQ }
@@ -55,6 +57,7 @@ rule token = parse
   | "return"          { KW_RETURN }
   | "Integer"         { KW_INTEGER }
   | "Symbol"          { KW_SYMBOL }
+  | "top"             { KW_TOP }
   | "bot"             { KW_BOT }
   | ':' (ident as s)  { SYMBOL s }
   | ident as i        { IDENT i }

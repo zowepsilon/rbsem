@@ -2,6 +2,11 @@
 
 open Ast
 
+let rec or_to_meth_and ty =
+  match ty with
+  | Rbs.TyOr (t1, tail) -> Rbs.TyMethAnd (t1, or_to_meth_and tail)
+  | _ -> ty
+
 %}
 
 %token KW_CLASS
@@ -17,6 +22,7 @@ open Ast
 %token KW_RETURN
 %token KW_INTEGER
 %token KW_SYMBOL
+%token KW_TOP
 %token KW_BOT
 %token EOF
 %token <string> CLASS_IDENT
@@ -40,10 +46,10 @@ open Ast
 %right EQ
 %left DOT
 
-%right ARROW
 %right PERCENT
 %right BAR
 %right AMP
+%right ARROW
 %right TILDE
 
 %start <Ruby.program> rb_program
@@ -72,16 +78,16 @@ class_stmt:
       { Ruby.CStmtAttr x }
 
 expr_group:
-  | NEWLINE?
+  | NEWLINE*
       { Ruby.Nil }
-  | NEWLINE? exprs=nonempty_expr_group
+  | NEWLINE* exprs=nonempty_expr_group
       { let (first, rest) = List.hd exprs, List.tl exprs in
         List.fold_left (fun acc e -> Ruby.Seq (acc, e)) first rest
       }
 
 nonempty_expr_group:
-  | e=expr NEWLINE? { [e] }
-  | e=expr NEWLINE rest=nonempty_expr_group { e::rest }
+  | e=expr NEWLINE* { [e] }
+  | e=expr NEWLINE+ rest=nonempty_expr_group { e::rest }
 
 expr:
   | LPAREN e=expr RPAREN { e }
@@ -108,18 +114,18 @@ lit:
   | s=SYMBOL  { LitSym s }
 
 (* RBS *)
-rbs_program: p=newline_list(declaration, EOF) { p }
+rbs_program: p=list(declaration) EOF { p }
 
 declaration:
   KW_CLASS name=CLASS_IDENT sup=option(LT sup=CLASS_IDENT { sup })
-  members=newline_list(member, KW_END)
+  members=list(member) KW_END
     { Rbs.Decl (name, sup, members) } 
 
-member: (* TODO: intersection method types *)
-  | KW_DEF f=IDENT COLON t=fun_ty             { Rbs.MemMeth (f, t) }
-  | KW_DEF KW_INITIALIZE COLON t=fun_ty       { Rbs.MemInit t }
-  | KW_DEF KW_SELF DOT f=IDENT COLON t=fun_ty { Rbs.MemClassMeth (f, t) }
-  | AT x=IDENT COLON t=ty                     { Rbs.MemAttr (x, t) }  
+member:
+  | KW_DEF f=IDENT COLON t=ty             { Rbs.MemMeth (f, or_to_meth_and t) }
+  | KW_DEF KW_INITIALIZE COLON t=ty       { Rbs.MemInit (or_to_meth_and t) }
+  | KW_DEF KW_SELF DOT f=IDENT COLON t=ty { Rbs.MemClassMeth (f, or_to_meth_and t) }
+  | AT x=IDENT COLON t=ty                 { Rbs.MemAttr (x, t) }  
 
 ty:
   | LPAREN t=ty RPAREN  { t }
@@ -127,6 +133,7 @@ ty:
   | KW_INTEGER          { Rbs.TyInteger }
   | KW_SELF             { Rbs.TySelf }
   | KW_NIL              { Rbs.TyNil }
+  | KW_TOP              { Rbs.TyNot Rbs.TyBot }
   | KW_BOT              { Rbs.TyBot }
   | l=lit               { Rbs.TyLit l }
   | c=CLASS_IDENT       { Rbs.TyClass c }
@@ -136,14 +143,15 @@ ty:
   | f=fun_ty            { f }
   | TILDE t=ty          { Rbs.TyNot t }
 
-fun_ty:
+%inline fun_ty:
   LPAREN t=ty RPAREN ARROW u=ty { Rbs.TyFun (t, u) }
 
 (* utils *)
 newline_list(X, END):
-  | NEWLINE? END { [] }
-  | NEWLINE? l=nonempty_newline_list(X, END) { l }
+  | NEWLINE* END { [] }
+  | NEWLINE* l=nonempty_newline_list(X, END) { l }
 
 nonempty_newline_list(X, END):
-  | x=X NEWLINE? END { [x] }
-  | x=X NEWLINE rest=nonempty_newline_list(X, END) { x::rest }
+  | x=X NEWLINE* END { [x] }
+  | x=X NEWLINE+ rest=nonempty_newline_list(X, END) { x::rest }
+

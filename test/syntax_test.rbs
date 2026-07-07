@@ -3,4 +3,9 @@ class A
     def self.g: (Int) -> (A % B & C)
     @hello: true
     def initialize: (self) -> ~bot
+    
+    def thing: (Integer) -> Integer
+             | (Symbol) -> Symbol
+             | ((A) -> C)
+             | top
 end
