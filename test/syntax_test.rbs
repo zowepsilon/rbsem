@@ -6,6 +6,6 @@ class A
     
     def thing: (Integer) -> Integer
              | (Symbol) -> Symbol
-             | ((A) -> C)
+             | (A) -> C
              | top
 end

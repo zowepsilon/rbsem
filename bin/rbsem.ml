@@ -36,10 +36,11 @@ let run_file (root : string) : unit =
   let rbs_file = root ^ ".rbs" in
   let rb_chan = open_in rb_file in
   let rbs_chan = open_in rbs_file in
-  let rb_program = parse_with Parser.rb_program false rb_chan rb_file in
-  let rbs_program = parse_with Parser.rbs_program true rbs_chan rbs_file in
-  print_endline (Ast.Ruby.show_program rb_program);
-  print_endline (Ast.Rbs.show_program rbs_program);
+  let _rb_program = parse_with Parser.rb_program false rb_chan rb_file in
+  let _rbs_program = parse_with Parser.rbs_program true rbs_chan rbs_file in
+  (*print_endline (Ast.Ruby.show_program rb_program);*)
+  (* print_endline (Ast.Rbs.show_program rbs_program);*)
+  print_endline "Ok!";
   exit ()
 
 let run () =
@@ -57,5 +58,5 @@ let run () =
   run_file root
 
 let () =
-  run ();
-  exit ()
+  Pretty.test4 ();
+  run ()
