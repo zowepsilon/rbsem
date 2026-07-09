@@ -58,5 +58,5 @@ let run () =
   run_file root
 
 let () =
-  Pretty.test4 ();
+  Pretty.test6 ();
   run ()

@@ -23,7 +23,7 @@ let rec is_free_in (x: var_name) (e: MlSem.expr) : bool =
 
 and is_free_in_pat (x : var_name) (p : MlSem.ty) : bool =
   match p with
-  | TyVar a -> false
+  | TyVar _ -> false
   | TyBind y -> x = y
   | TySymbol _ -> false
   | TyName _ -> false
