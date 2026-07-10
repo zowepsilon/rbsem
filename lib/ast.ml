@@ -78,7 +78,6 @@ module Rbs = struct
 end
 
 module MlSem = struct
-
   type expr =
     | Lit of lit
     | Var of var_name

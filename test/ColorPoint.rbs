@@ -1,0 +1,37 @@
+class Point
+  attr_reader x: Integer
+  attr_reader y: Integer
+
+  def initialize: (Integer x, Integer y) -> void
+
+  # Self-type: Point#equal expects a Point,
+  # and any subclass's equal expects that subclass.
+  def equal: (self other) -> bool
+end
+
+class ColorPoint < Point
+  attr_reader color: String
+
+  def initialize: (Integer x, Integer y, String color) -> void
+
+  # Intersection (point -> bool) & (colorPoint -> bool) encoded as overloads.
+  # The more specific branch (ColorPoint) must come first.
+  def equal: (self  other) -> bool
+           | (Point other) -> bool
+end
+
+class ColorPointFb < Point
+  attr_reader color: String
+
+  def initialize: (Integer x, Integer y, String color) -> void
+  # Self-type preserved from point_('self): only accepts ColorPointFb.
+  # No widening to bare Point — `other.color` must be available.
+  def equal: (self other) -> bool
+end
+
+class Utils
+  def self.call_eq: (Point p1, Point p2) -> bool
+
+  def self.control_flow: () -> Integer
+  def something: () -> Singleton[String]
+end

@@ -1,69 +1,84 @@
 open Ast
+open Ast.MlSem
 
-(* note: added in OCaml 5.5 *)
-(* a better name would be Option::is_some_and *)
-let option_exists (f: 'a -> bool) (x: 'a option) : bool =
-  match x with
-  | None -> false
-  | Some x -> f x
+let funn arg body = Fun (arg, body)
+let vv e env = Constr ("V", Tuple [e; env])
+let vvp e env = TyConstr ("V", TyTuple [e; env])
+let rr e = Constr ("R", e)
+let rrp e = TyConstr ("R", e)
 
-let rec is_free_in (x: var_name) (e: MlSem.expr) : bool =
-  match e with
-  | Lit _ -> false
-  | Var y -> x = y
-  | Tuple elmts -> List.exists (is_free_in x) elmts
-  | FieldAccess (e, _) -> is_free_in x e
-  | MatchWith (scrutinee, branches) ->
-      is_free_in x scrutinee || List.exists (fun (p, e) -> not (is_free_in_pat x p) && is_free_in x e) branches
-  | Fun (y, e) -> x <> y && is_free_in x e
-  | RecordLit (base, fields) ->
-      option_exists (is_free_in x) base
-      || List.exists (fun (_, e) -> is_free_in x e) fields
-  | _ -> assert false
+let instance_var name = "attr_" ^ name
+let class_var name = name
+let default_env_name = "env"
 
-and is_free_in_pat (x : var_name) (p : MlSem.ty) : bool =
-  match p with
-  | TyVar _ -> false
-  | TyBind y -> x = y
-  | TySymbol _ -> false
-  | TyName _ -> false
-  | TyEnum -> false
-  | TyInt -> false
-  | TyEmpty -> false
-  | TyTuple elmts -> List.exists (is_free_in_pat x) elmts
-  | TyNot p -> is_free_in_pat x p
-  | TyArrow (p1, p2) -> is_free_in_pat x p1 || is_free_in_pat x p2
-  | TyOr (p1, p2) -> is_free_in_pat x p1 || is_free_in_pat x p2
-  | TyAnd (p1, p2) -> is_free_in_pat x p1 || is_free_in_pat x p2
-  | TyRecord (base, fields, _tail) ->
-      (option_exists (is_free_in_pat x) base)
-      || (List.exists (fun (_, p) -> is_free_in_pat x p) fields)
-  | TyConstr (_c, t) -> is_free_in_pat x t
+let fresh =
+  let i = ref 0 in
+  fun name -> (incr i; name ^ string_of_int !i)
 
-let vv e env = MlSem.Constr ("V", Tuple [e; env])
-let vvp e env = MlSem.TyConstr ("V", TyTuple [e; env])
-let rr e = MlSem.Constr ("R", e)
-let rrp e = MlSem.TyConstr ("R", e)
+let value (e: expr) : expr =
+  let env = fresh default_env_name in
+  funn env (vv e (Var env))
 
-let value (e: MlSem.expr) : MlSem.expr =
-  let open MlSem in
-  assert (not (is_free_in "env" e));
-  Fun ("env", vv e (Var "env"))
+let return (e : expr) : expr =
+  funn (fresh default_env_name) (rr e)
 
-let return (e : MlSem.expr) : MlSem.expr =
-  let open MlSem in
-  Fun ("env", rr e)
-
-let bind (m : MlSem.expr) (f: MlSem.expr) : MlSem.expr =
-  let open MlSem in
-  Fun ("env", MatchWith (App (m, Var "env"), [
-    vvp (TyBind "v") (TyBind "env1"), App (App (f, Var "v"), Var "env");
+let bind (m : expr) (f: expr) : expr =
+  let env = fresh default_env_name in
+  let env2 = fresh default_env_name in
+  let v = fresh "__v" in
+  funn env @@ MatchWith (App (m, Var env), [
+    vvp (TyBind v) (TyBind env2), App (App (f, Var v), Var env2);
     rrp (TyBind "r"), rr (Var "r");
-  ]))
+  ])
 
-let extract (m : MlSem.expr) : MlSem.expr =
-  let open MlSem in
-  Fun ("env", MatchWith (App (m, RecordLit (None, [])), [
+let ( >>= ) = bind
+
+let extract (m : expr) : expr =
+  funn "_" @@ MatchWith (App (m, RecordLit (None, [])), [
     vvp (TyBind "v") (TyBind "_"), Var "v";
     rrp (TyBind "r"), Var "r";
-  ]))
+  ])
+
+let get (x : var_name) : expr =
+  let env = fresh default_env_name in
+  funn env (vv (FieldAccess (Var env, x)) (Var env))
+
+let set (x : var_name) (vall: expr) : expr =
+  let env = fresh default_env_name in
+  funn env (vv vall (RecordLit (Some (Var env), [x, vall])))
+
+module Ruby = struct
+  let rec expr (e : Ruby.expr) : expr =
+    match e with
+    | Lit lit -> value (Lit lit)
+    | LocalVar x -> get x
+    | InstVar x -> value (FieldAccess (Var "self", instance_var x))
+    | ClassVar c -> value (Var (class_var c))
+    | Self -> value (Var "self")
+    | Nil -> value (Tuple [])
+    | Call (receiver, meth, arg) ->
+        let recv = fresh "__receiver" in
+        let arg_name = fresh "__arg" in
+        let call = App (FieldAccess (Var recv, meth), Var arg_name) in
+        expr receiver >>= funn recv (expr arg >>= funn arg_name (value call))
+    | LocalAssign (x, e) ->
+        expr e >>= funn "v" (set x (Var "v"))
+    | InstAssign (x, e) ->
+        let self_assign = Assign ("self", RecordLit (Some (Var "self"), [x, Var "v"])) in
+        expr e >>= funn "v" (Seq (self_assign, value (Var "v")))
+    | IfThenElse (cond, e1, e2) ->
+        let ccond = fresh "__cond" in
+        expr cond >>= funn ccond (
+          IfIsThenElse (
+            Var ccond,
+            TyName "truthy",
+            expr e1,
+            expr e2
+          )
+        )
+    | Seq (e1, e2) -> expr e1 >>= (funn "_" (expr e2))
+    | Return e -> expr e >>= funn "r" (return (Var "r"))
+end
+
+module Rbs = struct
+end

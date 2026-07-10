@@ -126,6 +126,7 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
   | RecordLit (None, []) -> [0, "{}"]
   | RecordLit (Some old, []) -> paren_if_seq_expr old |> append_prefix "{ " |> append_suffix " with }"
   | RecordLit (old, fields) ->
+      let num_fields = List.length fields in
       let fields = fields |> List.map @@ fun (name, value) ->
         (name ^ " = "), (paren_if_seq_expr value)
       in
@@ -151,7 +152,7 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
       in
       let len_fields = List.fold_left len_of_display 0 fields in
       let fields = List.flatten fields in
-      if len_fields+4 <= max_line_width then (
+      if len_fields+4 <= max_line_width && num_fields < 3 then (
         [0, "{ " ^ String.concat "" (List.map snd fields) ^ " }"]
       ) else
           let elmts = List.map incr_indent fields in 
@@ -257,7 +258,10 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
       ) else
         e' @ [1, ":>"] @ ty
   | Constr (constr, arg) ->
-    always_paren_expr arg |> append_prefix constr
+    begin match arg with
+    | Tuple _ -> display_expr arg |> append_prefix constr
+    | _ -> always_paren_expr arg |> append_prefix constr
+    end
   | App (fn, arg) ->
       let fn = paren_expr e fn in
       let arg = paren_expr_strict e arg in
@@ -297,11 +301,15 @@ and display_ty (t : MlSem.ty) : (int * string) list =
   | TyOr (t1, t2) -> display_ty_bin_op " | " t t1 t2
   | TyAnd (t1, t2) -> display_ty_bin_op " & " t t1 t2
   | TyConstr (constr, t) ->
-      display_ty t |> append_prefix (constr ^ "(") |> append_suffix ")"
+      begin match t with
+      | TyTuple _ -> display_ty t |> append_prefix constr
+      | _ -> display_ty t |> append_prefix (constr ^ "(") |> append_suffix ")"
+      end
   | TyRecord (None, [], NoTail) -> [0, "{}"]
   | TyRecord (None, [], TailOpen) -> [0, "{..}"]
   | TyRecord (None, [], TailRow r) -> [0, "{ ;; " ^ display_row r ^ " }"]
   | TyRecord (sup, fields, tail) ->
+      let num_fields = List.length fields in
       let fields = fields |> List.map @@ fun (name, value) ->
         (name ^ " : "), (display_ty value)
       in
@@ -339,7 +347,7 @@ and display_ty (t : MlSem.ty) : (int * string) list =
       in
       let len_fields = List.fold_left len_of_display 0 fields in
       let fields = List.flatten fields in
-      if len_fields+4 <= max_line_width then (
+      if len_fields+4 <= max_line_width && num_fields < 3 then (
         [0, "{ " ^ String.concat "" (List.map snd fields) ^ " }"]
       ) else
           let elmts = List.map incr_indent fields in 
@@ -374,9 +382,7 @@ and paren_ty (main_ty : MlSem.ty) (sub_ty : MlSem.ty) : (int * string) list =
 
 and always_paren_ty (sub_ty : MlSem.ty) : (int * string) list =
   let sub_display = display_ty sub_ty in
-  if List.length sub_display = 1
-    then sub_display |> append_prefix "(" |> append_suffix ")"
-    else [0, "("] @ List.map incr_indent sub_display @ [0, ")"]
+  sub_display |> append_prefix "(" |> append_suffix ")"
 
 and display_ty_bin_op (op : string) (main_ty : MlSem.ty) (left_ty : MlSem.ty) (right_ty : MlSem.ty) : (int * string) list =
   let left_ty = paren_ty main_ty left_ty |> append_suffix op in
@@ -432,7 +438,7 @@ let test1 () =
 let test2 () =
   let open MlSem in
   let body2 = Tuple [Var "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; Var "yyyyyyyyyyyyyyyy"; Var "z"] in
-  let expr = RecordLit (None, [
+  let expr = RecordLit (Some body2, [
     "x", Lit LitTrue;
     "y", Lit LitFalse;
   ]) in
@@ -462,5 +468,7 @@ let test6 () =
   let open MlSem in
   let ty = TyRecord (Some TyInt, [
     "x", TyInt;
-  ], NoTail) in
+    "y", TyInt;
+    "z", TyInt;
+  ], TailRow (RowAnd (RowOr (RowVar "a", RowVar "b"), RowVar "c"))) in
   display_ty ty |> print_display

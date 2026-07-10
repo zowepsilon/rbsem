@@ -1,11 +1,11 @@
 class A
-    def f: (Integer) -> Integer | Symbol
-    def self.g: (Int) -> (A % B & C)
+    def f: (Integer x) -> Integer | Symbol
+    def self.g: (Int x) -> (A % B & C)
     @hello: true
-    def initialize: (self) -> ~bot
+    def initialize: (self x) -> ~bot
     
-    def thing: (Integer) -> Integer
-             | (Symbol) -> Symbol
-             | (A) -> C
+    def thing: (Integer x) -> Integer
+             | (Symbol x) -> Symbol
+             | (A x) -> C
              | top
 end

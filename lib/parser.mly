@@ -144,7 +144,7 @@ ty:
   | TILDE t=ty          { Rbs.TyNot t }
 
 %inline fun_ty:
-  LPAREN t=ty RPAREN ARROW u=ty { Rbs.TyFun (t, u) }
+  LPAREN t=ty IDENT RPAREN ARROW u=ty { Rbs.TyFun (t, u) }
 
 (* utils *)
 newline_list(X, END):
