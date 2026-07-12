@@ -50,7 +50,7 @@ let rec map_with_special_last (f : 'a -> 'b) (g: 'a -> 'b) (xs : 'a list) : 'b l
   | [x] -> [g x]
   | hd :: tl -> f hd :: map_with_special_last f g tl
 
-let max_line_width = 800
+let max_line_width = 80
 let indent_size = 2
 
 let append_prefix (prefix : string) (display : (int * string) list) : (int * string) list =
@@ -251,7 +251,7 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
         let ty = List.hd ty |> snd in
         [0, e' ^ " :> " ^ ty]
       ) else
-        e' @ [1, ":>"] @ ty
+        e' @ List.map incr_indent (append_prefix ":> " ty)
   | Constr (constr, arg) ->
     begin match arg with
     | Tuple _ -> display_expr arg |> append_prefix constr
