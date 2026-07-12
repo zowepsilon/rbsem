@@ -37,16 +37,18 @@ let run_file (root : string) : unit =
   let rb_chan = open_in rb_file in
   let rbs_chan = open_in rbs_file in
   let rb_program = parse_with Parser.rb_program false rb_chan rb_file in
-  let _rbs_program = parse_with Parser.rbs_program true rbs_chan rbs_file in
-  let (Stmt (_, _, CStmtMeth (_, _, e) :: _)) = List.hd rb_program in
-  let e = Translation.Ruby.expr e in
+  let rbs_program = parse_with Parser.rbs_program true rbs_chan rbs_file in
+  (*
   print_endline "type truthy = ~(false | ())";
   print_endline "let extract m = match m {} with | V(v, _) -> v | R(r) -> r end\n";
   print_endline "let f b = extract (";
   Pretty.display_expr e |> Pretty.print_display;
   print_endline ")";
-  (*print_endline (Ast.Ruby.show_program rb_program);*)
-  (* print_endline (Ast.Rbs.show_program rbs_program);*)
+  *)
+  rbs_program
+    |> Translation.Rbs.program
+    |> List.concat_map Pretty.display_top_level
+    |> Pretty.print_display;
   exit ()
 
 let run () =

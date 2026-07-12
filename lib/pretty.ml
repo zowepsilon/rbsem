@@ -20,13 +20,8 @@ let prec_expr: MlSem.expr -> int =
 
 let prec_ty: MlSem.ty -> int =
   function
-  | TyBind _
   | TyVar _
   | TyName _
-  | TySymbol _
-  | TyEnum
-  | TyInt
-  | TyEmpty
   | TyRecord _
   | TyTuple _   -> 0
   | TyConstr _  -> 1
@@ -275,14 +270,9 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
 
 and display_ty (t : MlSem.ty) : (int * string) list =
   match t with
-  | TyBind x -> [0, x]
   | TyVar a -> [0, "'" ^ a]
   | TyName x -> [0, x]
-  | TySymbol s -> [0, s]
-  | TyEnum -> [0, "enum"]
-  | TyInt -> [0, "int"]
-  | TyEmpty -> [0, "empty"]
-  | TyNot TyEmpty -> [0, "any"]
+  | TyNot TyName "empty" -> [0, "any"]
   | TyTuple elmts ->
       let elmts = List.map display_ty elmts in
       let elmts = map_without_last (append_suffix ", ") elmts in
@@ -317,6 +307,10 @@ and display_ty (t : MlSem.ty) : (int * string) list =
         match tail with
         | NoTail ->
           fields |> map_without_last @@ fun (name, value) -> name, append_suffix "; " value
+        | TailOpen -> 
+          fields |> map_with_special_last
+            (fun (name, value) -> name, append_suffix "; " value)
+            (fun (name, value) -> name, append_suffix " " value)
         | _ -> 
           fields |> map_with_special_last
             (fun (name, value) -> name, append_suffix "; " value)
@@ -416,6 +410,35 @@ and paren_row (main_row : MlSem.row) (sub_row : MlSem.row) : string =
     then display_row sub_row
     else "(" ^ display_row sub_row ^ ")"
 
+and display_top_level (tl : MlSem.top_level) : (int * string) list =
+  match tl with
+  | TLLet (x, e) ->
+      let prefix = "let " ^ x ^ " = " in
+      let e = display_expr e in
+      if String.length prefix + len_of_display 0 e <= max_line_width then (
+        let e = List.hd e |> snd in
+        [0, prefix ^ e]
+      ) else (
+        e |> append_prefix prefix
+      )
+  | TLVal (x, t) ->
+      let prefix = "val " ^ x ^ " : " in
+      let t = display_ty t in
+      if String.length prefix + len_of_display 0 t <= max_line_width then (
+        let t = List.hd t |> snd in
+        [0, prefix ^ t]
+      ) else (
+        t |> append_prefix prefix
+      )
+  | TLTy [(ty_name, ty_vars, ty)] ->
+      let prefix =
+        if ty_vars = []
+        then "type " ^ ty_name ^ " = "
+        else "type " ^ ty_name ^ "('" ^ String.concat ", '" ty_vars ^ ") = "
+      in
+      display_ty ty |> append_prefix prefix
+  | TLTy _ -> failwith "TODO"
+
 let rec print_display : (int * string) list -> unit =
   function
   | [] -> ()
@@ -429,8 +452,8 @@ let test1 () =
   let body1 = Tuple [Var "x"; Var "yyyyyyyyyyyyyyyy"; Var "z"] in
   let body2 = Tuple [Var "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; Var "yyyyyyyyyyyyyyyy"; Var "z"] in
   let expr = MatchWith (Var "hihi", [
-    TyNot (TyConstr ("C", TyBind "x")), body1;
-    TyNot (TyConstr ("C", TyBind "x")), body2;
+    TyNot (TyConstr ("C", TyName "x")), body1;
+    TyNot (TyConstr ("C", TyName "x")), body2;
   ]) in
   let expr = Fun ("hihi", expr) in
   display_expr expr |> print_display
@@ -464,11 +487,22 @@ let test5 () =
   let expr = App (Var "x", App (Var "y", Var "z")) in
   display_expr expr |> print_display
 
+
 let test6 () =
   let open MlSem in
-  let ty = TyRecord (Some TyInt, [
-    "x", TyInt;
-    "y", TyInt;
-    "z", TyInt;
+  let ty = TyRecord (Some (TyName "int"), [
+    "x", TyName "int";
+    "y", TyName "int";
+    "z", TyName "int";
   ], TailRow (RowAnd (RowOr (RowVar "a", RowVar "b"), RowVar "c"))) in
   display_ty ty |> print_display
+
+let test7 () =
+  let open MlSem in
+  let ty = TyRecord (Some (TyName "int"), [
+    "x", TyName "int";
+    "y", TyName "int";
+    "z", TyName "int";
+  ], TailRow (RowAnd (RowOr (RowVar "a", RowVar "b"), RowVar "c"))) in
+  let tl = TLTy [("x", ["a"; "b"], ty)] in
+  display_top_level tl |> print_display

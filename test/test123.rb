@@ -1,10 +1,11 @@
 class A
   def g(b)
+    x = 2
     if b then
-      z = 1
+      return 1
     else
     end
-
-    z
+    y = x
+    y
   end
 end

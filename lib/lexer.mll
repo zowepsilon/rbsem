@@ -25,7 +25,7 @@ let constr = ['A'-'Z'] ['a'-'z' 'A'-'Z' '_' '0'-'9' '\'' ]*
 
 rule token = parse
   | [' ' '\t']        { token lexbuf }
-  | '\n'              { if !ignore_newlines then token lexbuf else (update_loc lexbuf ~lines:1 ~chars:0; NEWLINE) }
+  | '\n'              { update_loc lexbuf ~lines:1 ~chars:0; if !ignore_newlines then token lexbuf else NEWLINE }
   | '('               { LPAREN }
   | ')'               { RPAREN }
   | '='               { EQ }

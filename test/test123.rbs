@@ -1,3 +1,9 @@
 class A
-  def f: (Integer x) -> Integer
+  def f: ((1 | 2) x) -> Integer
+       | (Integer x) -> Symbol
+
+   @x : Integer
+   @y : Symbol
+
+   def initialize: (Integer x) -> top
 end

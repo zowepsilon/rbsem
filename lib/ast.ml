@@ -96,13 +96,8 @@ module MlSem = struct
     | App of expr * expr
     
   and ty =
-    | TyBind of var_name
     | TyVar of var_name
     | TyName of var_name
-    | TySymbol of class_name
-    | TyEnum
-    | TyInt
-    | TyEmpty
     | TyTuple of ty list
     | TyNot of ty
     | TyArrow of ty * ty
