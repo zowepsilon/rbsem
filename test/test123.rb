@@ -1,11 +1,7 @@
 class A
-  def g(b)
-    x = 2
-    if b then
-      return 1
-    else
-    end
-    y = x
-    y
+  def f(x)
+    42
   end
+
+  def initialize(x) end
 end

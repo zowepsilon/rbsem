@@ -50,7 +50,7 @@ let rec map_with_special_last (f : 'a -> 'b) (g: 'a -> 'b) (xs : 'a list) : 'b l
   | [x] -> [g x]
   | hd :: tl -> f hd :: map_with_special_last f g tl
 
-let max_line_width = 100
+let max_line_width = 800
 let indent_size = 2
 
 let append_prefix (prefix : string) (display : (int * string) list) : (int * string) list =
@@ -66,7 +66,7 @@ let append_suffix (suffix : string) (display : (int * string) list) : (int * str
 let len_of_display (len : int) (elmt : (int * string) list) : int =
   match elmt with
   | [_, line] -> len + String.length line
-  | _ -> len + max_line_width
+  | _ -> len + max_line_width + max_line_width
 
 let incr_indent (indent, line) = indent+1, line
 
@@ -229,7 +229,7 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
       in
       let_part @ e2
   | LetMutIn (name, e1, e2) ->
-      let name = "let " ^ name ^ " = " in
+      let name = "let mut " ^ name ^ " = " in
       let e1 = display_expr e1 in
       let e2 = display_expr e2 in
       let len_pat = String.length name in
@@ -249,7 +249,7 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
       if len_of_display 0 e' <= max_line_width then (
         let e' = List.hd e' |> snd in
         let ty = List.hd ty |> snd in
-        [0, e' ^ " :>" ^ ty]
+        [0, e' ^ " :> " ^ ty]
       ) else
         e' @ [1, ":>"] @ ty
   | Constr (constr, arg) ->
@@ -365,9 +365,7 @@ and paren_if_seq_expr (sub_expr : MlSem.expr) : (int * string) list =
 
 and always_paren_expr (sub_expr : MlSem.expr) : (int * string) list =
   let sub_display = display_expr sub_expr in
-  if List.length sub_display = 1
-    then sub_display |> append_prefix "(" |> append_suffix ")"
-    else [0, "("] @ List.map incr_indent sub_display @ [0, ")"]
+  sub_display |> append_prefix "(" |> append_suffix ")"
 
 and paren_ty (main_ty : MlSem.ty) (sub_ty : MlSem.ty) : (int * string) list =
   if prec_ty sub_ty <= prec_ty main_ty
@@ -439,7 +437,7 @@ and display_top_level (tl : MlSem.top_level) : (int * string) list =
       display_ty ty |> append_prefix prefix
   | TLTy _ -> failwith "TODO"
 
-let rec print_display : (int * string) list -> unit =
+and print_display : (int * string) list -> unit =
   function
   | [] -> ()
   | (indent, line) :: rest ->

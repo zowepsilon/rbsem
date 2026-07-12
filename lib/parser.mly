@@ -4,7 +4,7 @@ open Ast
 
 let rec or_to_meth_and ty =
   match ty with
-  | Rbs.TyOr (t1, tail) -> Rbs.TyMethAnd (t1, or_to_meth_and tail)
+  | Rbs.TyOr (head, t2) -> Rbs.TyMethAnd (or_to_meth_and head, t2)
   | _ -> ty
 
 %}
@@ -46,9 +46,9 @@ let rec or_to_meth_and ty =
 %right EQ
 %left DOT
 
-%right PERCENT
-%right BAR
-%right AMP
+%left PERCENT
+%left BAR
+%left AMP
 %right ARROW
 %right TILDE
 
