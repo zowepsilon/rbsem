@@ -1,5 +1,5 @@
 class A
-   def initialize: (top x) -> top
+   def initialize: () -> top
 
-   def f: (top x) -> Integer
+   def f: (top x, top y) -> Integer
 end

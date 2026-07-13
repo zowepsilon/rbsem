@@ -110,9 +110,13 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
       in
       let branches = List.flatten branches in
       scrutinee @ branches @ [0, "end"]
-  | Fun (x, e) ->
+  | Fun (args, e) ->
       let e = display_expr e in
-      let prefix = "fun " ^ x ^ " -> " in
+      let prefix =
+        if List.length args = 1
+          then "fun " ^ (List.hd args) ^ " -> "
+          else "fun (" ^ String.concat ", " args ^ ") -> "
+        in
       if len_of_display 0 e + String.length prefix <= max_line_width then (
         let e = List.hd e |> snd in
         [0, prefix ^ e]
@@ -453,7 +457,7 @@ let test1 () =
     TyNot (TyConstr ("C", TyName "x")), body1;
     TyNot (TyConstr ("C", TyName "x")), body2;
   ]) in
-  let expr = Fun ("hihi", expr) in
+  let expr = Fun (["hihi"], expr) in
   display_expr expr |> print_display
 
 let test2 () =

@@ -40,6 +40,7 @@ let rec or_to_meth_and ty =
 %token TILDE
 %token PERCENT
 %token COLON
+%token COMMA
 %token ARROW
 
 %right KW_RETURN
@@ -68,12 +69,12 @@ stmt:
 
 
 class_stmt:
-  | KW_DEF f=IDENT LPAREN x=IDENT RPAREN e=expr_group KW_END
-      { Ruby.CStmtMeth (f, x, e) }
-  | KW_DEF KW_SELF DOT f=IDENT LPAREN x=IDENT RPAREN e=expr_group KW_END
-      { Ruby.CStmtClassMeth (f, x, e) }
-  | KW_DEF KW_INITIALIZE LPAREN x=IDENT RPAREN e=expr_group KW_END
-      { Ruby.CStmtInit (x, e) }
+  | KW_DEF f=IDENT LPAREN args=separated_list(COMMA, IDENT) RPAREN e=expr_group KW_END
+      { Ruby.CStmtMeth (f, args, e) }
+  | KW_DEF KW_SELF DOT f=IDENT LPAREN args=separated_list(COMMA, IDENT) RPAREN e=expr_group KW_END
+      { Ruby.CStmtClassMeth (f, args, e) }
+  | KW_DEF KW_INITIALIZE LPAREN args=separated_list(COMMA, IDENT) RPAREN e=expr_group KW_END
+      { Ruby.CStmtInit (args, e) }
   | KW_ATTR x=IDENT
       { Ruby.CStmtAttr x }
 
@@ -144,7 +145,7 @@ ty:
   | TILDE t=ty          { Rbs.TyNot t }
 
 %inline fun_ty:
-  LPAREN t=ty IDENT RPAREN ARROW u=ty { Rbs.TyFun (t, u) }
+  LPAREN args=separated_list(COMMA, t=ty IDENT { t }) RPAREN ARROW u=ty { Rbs.TyFun (args, u) }
 
 (* utils *)
 newline_list(X, END):

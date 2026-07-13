@@ -1,7 +1,7 @@
 open Ast
 open Ast.MlSem
 
-let funn arg body = Fun (arg, body)
+let funn arg body = Fun ([arg], body)
 let vv e env = Constr ("V", Tuple [e; env])
 let vvp e env = TyConstr ("V", TyTuple [e; env])
 let rr e = Constr ("R", e)
@@ -58,7 +58,7 @@ let set (x : var_name) (vall: expr) : expr =
 module Rbs = struct
   let rec dom (t : Rbs.ty) : Rbs.ty =
     match t with
-    | TyFun (u, _) -> u
+    | TyFun (u, _) -> TyTuple u
     | TyMethAnd (t1, t2) -> TyOr (dom t1, dom t2)
     | _ -> failwith ("method intersection of non-function type: " ^ Rbs.show_ty t)
   
@@ -73,6 +73,7 @@ module Rbs = struct
     | TyInteger -> TyName "int"
     | TySelf -> TyVar "self"
     | TyNil -> TyTuple []
+    | TyTuple elmts -> TyTuple (List.map ty elmts)
     | TyBot -> TyName "empty"
     | TyLit LitTrue -> TyName "true"
     | TyLit LitFalse -> TyName "false"
@@ -83,7 +84,7 @@ module Rbs = struct
     | TyAnd (t1, t2) -> TyAnd (ty t1, ty t2)
     | TyMethAnd (t1, t2) ->
         TyAnd (ty t1, TyArrow (TyAnd (ty (dom t2), TyNot (ty (dom t1))), ty (cod t2)))
-    | TyFun (u, r) -> TyArrow (ty u, ty r)
+    | TyFun (u, r) -> TyArrow (TyTuple (List.map ty u), ty r)
     | TyNot t -> TyNot (ty t)
 
   let rec make_constructor_ty (name : class_name) (t : Rbs.ty) : Rbs.ty =
@@ -175,14 +176,13 @@ module Ruby = struct
     | Seq (e1, e2) -> expr e1 >>= (funn "_" (expr e2))
     | Return e -> expr e >>= funn "r" (return (Var "r"))
 
-  let function_body (arg : string) (body : Ruby.expr) : expr =
-    funn arg @@
-      App (Var "extract", expr body)
+  let function_body (args : string list) (body : Ruby.expr) : expr =
+    Fun (args, App (Var "extract", expr body))
 
   let cstmt_inst (m : Ruby.class_stmt) : (string * expr) option =
     match m with
     | CStmtAttr x -> Some (x, Var "undefined")
-    | CStmtMeth (f, arg, body) -> Some (f, function_body arg body)
+    | CStmtMeth (f, args, body) -> Some (f, function_body args body)
     | _ -> None
 
   let cstmt_class
@@ -202,7 +202,7 @@ module Ruby = struct
         let fields = 
             (name_subtyping_field, Cast (Var name_subtyping_symbol, TyNot (TyName "TODO_")))
             :: List.rev fields in
-        Some ("new", Fun (arg, Cast(App (Var "rec", Fun ("self",
+        Some ("new", Fun (arg, Cast(App (Var "rec", Fun (["self"],
           LetMutIn ("self", Var "self", RecordLit (
             Option.map (fun parent -> Cast (Var "opaque", TyName (class_ty parent))) parent,
             fields
@@ -220,7 +220,7 @@ module Ruby = struct
     let fields = 
         (name_subtyping_field, Cast (Var name_subtyping_symbol, TyNot (TyName "TODO_")))
         :: List.rev fields in
-    TLLet (class_var name, Cast (App (Var "rec", Fun ("self", 
+    TLLet (class_var name, Cast (App (Var "rec", Fun (["self"], 
       LetMutIn ("self", Var "self", RecordLit (None, fields))
     )), TyName (class_singleton_ty name)))
 

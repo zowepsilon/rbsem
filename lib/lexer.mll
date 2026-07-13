@@ -37,6 +37,7 @@ rule token = parse
   | '~'               { TILDE }
   | '%'               { PERCENT }
   | ':'               { COLON }
+  | ','               { COMMA }
   | "->"              { ARROW }
 (*| ';'               { SEQ }*)
 (*| ','               { COMMA }*)

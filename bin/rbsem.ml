@@ -43,7 +43,6 @@ let run_file (root : string) : unit =
   print_endline "val opaque: 'a";
   print_endline "val rec: ('a -> 'a) -> 'a";
   print_endline "let extract m = match m {} with | V(v, _) -> v | R(r) -> r end\n";
-
   rbs_program
     |> Translation.Rbs.program
     |> List.concat_map Pretty.display_top_level

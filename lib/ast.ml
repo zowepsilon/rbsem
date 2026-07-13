@@ -38,9 +38,9 @@ module Ruby = struct
 
   type stmt = Stmt of class_name * class_name option * class_stmt list
   and class_stmt =
-    | CStmtMeth of fun_name * var_name * expr
-    | CStmtInit of var_name * expr
-    | CStmtClassMeth of fun_name * var_name * expr
+    | CStmtMeth of fun_name * var_name list * expr
+    | CStmtInit of var_name list * expr
+    | CStmtClassMeth of fun_name * var_name list * expr
     | CStmtAttr of var_name
   [@@deriving show]
 
@@ -62,7 +62,8 @@ module Rbs = struct
     | TyMethAnd of ty * ty
     | TyFun of fun_ty
     | TyNot of ty
-  and fun_ty = ty * ty
+    | TyTuple of ty list
+  and fun_ty = ty list * ty
   [@@deriving show]
 
   type decl = Decl of class_name * class_name option * member list
@@ -84,7 +85,7 @@ module MlSem = struct
     | Tuple of expr list
     | FieldAccess of expr * var_name
     | MatchWith of expr * (ty * expr) list
-    | Fun of var_name * expr
+    | Fun of var_name list * expr
     | RecordLit of expr option * (var_name * expr) list
     | IfIsThenElse of expr * ty * expr * expr
     | Assign of var_name * expr
@@ -121,6 +122,5 @@ module MlSem = struct
     | TLTy of (var_name * var_name list * ty) list
     | TLLet of var_name * expr
     | TLVal of var_name * ty
-
   [@@deriving show]
 end

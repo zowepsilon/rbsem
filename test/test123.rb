@@ -1,7 +1,8 @@
 class A
-  def f(x)
+  def initialize() end
+
+  def f(x, y)
     42
   end
 
-  def initialize(x) end
 end
