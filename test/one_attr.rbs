@@ -1,0 +1,5 @@
+class A
+   @x : Integer
+
+   def initialize: (Integer x) -> top
+end

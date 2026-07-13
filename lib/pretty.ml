@@ -17,6 +17,7 @@ let prec_expr: MlSem.expr -> int =
   | MatchWith _     -> 8
   | Seq _           -> 9
   | Fun _           -> 10
+  | FunAnnot _      -> 10
 
 let prec_ty: MlSem.ty -> int =
   function
@@ -122,6 +123,17 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
         [0, prefix ^ e]
       ) else
         [0, prefix] @ List.map incr_indent e
+  | FunAnnot (arg, ty, e) ->
+      let e = display_expr e in
+      let prefix =
+        display_ty ty |> append_prefix ("fun (" ^ arg ^ " : ") |> append_suffix ") -> "
+      in
+      if len_of_display 0 e + len_of_display 0 prefix <= max_line_width then (
+        let e = List.hd e |> snd in
+        let prefix = List.hd prefix |> snd in
+        [0, prefix ^ e]
+      ) else
+        prefix @ List.map incr_indent e
   | RecordLit (None, []) -> [0, "{}"]
   | RecordLit (Some old, []) -> paren_if_seq_expr old |> append_prefix "{ " |> append_suffix " with }"
   | RecordLit (old, fields) ->
@@ -191,7 +203,7 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
       in
       cond @ branch1 @ branch2
   | Assign (x, value) ->
-      let x = x ^ " = " in
+      let x = x ^ " := " in
       let value = paren_expr e value in
       if String.length x + len_of_display 0 value <= max_line_width then
         let value = List.hd value |> snd in

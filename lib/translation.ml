@@ -129,7 +129,7 @@ module Rbs = struct
       | Some mem -> mem :: acc
       | None -> acc
     ) [] members in
-    let members = (name_subtyping_field, TyName "TODO_") :: List.rev members in
+    let members = (name_subtyping_field, TyNot (TyName "TODO_")) :: List.rev members in
     let classTy = TLTy [class_singleton_ty name, [], TyRecord (
       Option.map (fun parent -> TyName (class_singleton_ty parent)) parent,
       members,
@@ -145,7 +145,7 @@ module Rbs = struct
 end
 
 module Ruby = struct
-  let rec expr (e : Ruby.expr) : expr =
+  let rec expr (self_ty : ty) (e : Ruby.expr) : expr =
     match e with
     | Lit lit -> value (Lit lit)
     | LocalVar x -> get x
@@ -153,36 +153,44 @@ module Ruby = struct
     | ClassVar c -> value (Var (class_var c))
     | Self -> value (Var "self")
     | Nil -> value (Tuple [])
-    | Call (receiver, meth, arg) ->
+    | Call (receiver, meth, args) ->
         let recv = fresh "__receiver" in
         let arg_name = fresh "__arg" in
         let call = App (FieldAccess (Var recv, meth), Var arg_name) in
-        expr receiver >>= funn recv (expr arg >>= funn arg_name (value call))
+        expr self_ty receiver >>= funn recv (expr self_ty (Tuple args) >>= funn arg_name (value call))
     | LocalAssign (x, e) ->
-        expr e >>= funn "v" (set x (Var "v"))
+        expr self_ty e >>= funn "v" (set x (Var "v"))
     | InstAssign (x, e) ->
-        let self_assign = Assign ("self", RecordLit (Some (Var "self"), [x, Var "v"])) in
-        expr e >>= funn "v" (Seq (self_assign, value (Var "v")))
+        let self_assign = Assign ("self", Cast (RecordLit (Some (Var "self"), [attr_name x, Var "v"]), self_ty)) in
+        expr self_ty e >>= funn "v" (Seq (self_assign, value (Var "v")))
     | IfThenElse (cond, e1, e2) ->
         let ccond = fresh "__cond" in
-        expr cond >>= funn ccond (
+        expr self_ty cond >>= funn ccond (
           IfIsThenElse (
             Var ccond,
             TyName "truthy",
-            expr e1,
-            expr e2
+            expr self_ty e1,
+            expr self_ty e2
           )
         )
-    | Seq (e1, e2) -> expr e1 >>= (funn "_" (expr e2))
-    | Return e -> expr e >>= funn "r" (return (Var "r"))
+    | Seq (e1, e2) -> expr self_ty e1 >>= (funn "_" (expr self_ty e2))
+    | Return e -> expr self_ty e >>= funn "r" (return (Var "r"))
+    | Tuple elmts ->
+        let v = fresh "v" in
+        let vars = List.mapi (fun i _ -> (v ^ "_" ^ string_of_int i)) elmts in
+        let res = value (Tuple (List.map (fun x -> Var x) vars)) in
+        List.fold_left2 (fun tail var e -> expr self_ty e >>= funn var tail) res (List.rev vars) (List.rev elmts)
 
-  let function_body (args : string list) (body : Ruby.expr) : expr =
-    Fun (args, App (Var "extract", expr body))
+  let function_body_body (self_ty : ty) (body : Ruby.expr) : expr =
+    App (Var "extract", expr self_ty body)
 
-  let cstmt_inst (m : Ruby.class_stmt) : (string * expr) option =
+  let function_body (self_ty : ty) (args : string list) (body : Ruby.expr) : expr =
+    Fun (args, function_body_body self_ty body)
+
+  let cstmt_inst (self_ty : ty) (m : Ruby.class_stmt) : (string * expr) option =
     match m with
-    | CStmtAttr x -> Some (x, Var "undefined")
-    | CStmtMeth (f, args, body) -> Some (f, function_body args body)
+    | CStmtAttr x -> Some (attr_name x, Var "undefined")
+    | CStmtMeth (f, args, body) -> Some (f, function_body self_ty args body)
     | _ -> None
 
   let cstmt_class
@@ -191,23 +199,33 @@ module Ruby = struct
       (members : Ruby.class_stmt list)
       (m : Ruby.class_stmt) : (string * expr) option =
     match m with
-    | CStmtClassMeth (f, arg, body) ->
-        Some (f, function_body arg body)
-    | CStmtInit (arg, body) ->
+    | CStmtClassMeth (f, args, body) ->
+        Some (f, function_body (TyName (class_singleton_ty name)) args body)
+    | CStmtInit (args, body) ->
+        let self_ty = TyName (class_ty name) in
         let fields = List.fold_left (fun acc m ->
-          match cstmt_inst m with
+          match cstmt_inst self_ty m with
           | Some x -> x :: acc
           | None -> acc
         ) [] members in
         let fields = 
             (name_subtyping_field, Cast (Var name_subtyping_symbol, TyNot (TyName "TODO_")))
             :: List.rev fields in
-        Some ("new", Fun (arg, Cast(App (Var "rec", Fun (["self"],
-          LetMutIn ("self", Var "self", RecordLit (
-            Option.map (fun parent -> Cast (Var "opaque", TyName (class_ty parent))) parent,
-            fields
-          ))
-        )), TyName (class_ty name))))
+        Some ("new", Fun (args, Cast(App (Var "rec", FunAnnot ("self", TyName (class_ty name),
+          LetMutIn ("self", Var "self", Seq (
+            Assign ("self", Cast(
+              RecordLit (
+                Option.map (fun parent -> Cast (Var "opaque", TyName (class_ty parent))) parent,
+                fields
+              ),
+              self_ty
+            )),
+            Seq (
+            function_body_body self_ty body,
+            Cast (Var "self", self_ty)
+            ))
+          )
+        )), self_ty)))
     | _ -> None
 
   let stmt (s : Ruby.stmt) : top_level =
@@ -217,11 +235,11 @@ module Ruby = struct
       | Some x -> x :: acc
       | None -> acc
     ) [] members in
-    let fields = 
+    let fields =
         (name_subtyping_field, Cast (Var name_subtyping_symbol, TyNot (TyName "TODO_")))
         :: List.rev fields in
-    TLLet (class_var name, Cast (App (Var "rec", Fun (["self"], 
-      LetMutIn ("self", Var "self", RecordLit (None, fields))
+    TLLet (class_var name, Cast (App (Var "rec", FunAnnot ("self", TyName (class_singleton_ty name),
+      LetMutIn ("self", Var "self", Cast (RecordLit (None, fields), TyName (class_singleton_ty name)))
     )), TyName (class_singleton_ty name)))
 
   let program (p : Ruby.program) : top_level list =

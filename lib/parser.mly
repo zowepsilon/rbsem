@@ -98,7 +98,8 @@ expr:
   | x=CLASS_IDENT { Ruby.ClassVar x }
   | KW_SELF { Ruby.Self }
   | KW_NIL { Ruby.Nil }
-  | r=expr DOT f=IDENT LPAREN a=expr RPAREN { Ruby.Call (r, f, a) }
+  | r=expr DOT f=IDENT { Ruby.Call (r, f, []) }
+  | r=expr DOT f=IDENT LPAREN args=separated_list(COMMA, expr) RPAREN { Ruby.Call (r, f, args) }
   | x=IDENT EQ e=expr { Ruby.LocalAssign (x, e) }
   | AT x=IDENT EQ e=expr { Ruby.InstAssign (x, e) }
   | KW_IF b=expr if_sep e1=expr_group KW_ELSE e2=expr_group KW_END { Ruby.IfThenElse (b, e1, e2) }

@@ -28,12 +28,13 @@ module Ruby = struct
     | ClassVar of class_name
     | Self
     | Nil
-    | Call of expr * fun_name * expr
+    | Call of expr * fun_name * expr list
     | LocalAssign of var_name * expr
     | InstAssign of var_name * expr
     | IfThenElse of expr * expr * expr
     | Seq of expr * expr
     | Return of expr
+    | Tuple of expr list
   [@@deriving show]
 
   type stmt = Stmt of class_name * class_name option * class_stmt list
@@ -86,6 +87,7 @@ module MlSem = struct
     | FieldAccess of expr * var_name
     | MatchWith of expr * (ty * expr) list
     | Fun of var_name list * expr
+    | FunAnnot of var_name * ty * expr
     | RecordLit of expr option * (var_name * expr) list
     | IfIsThenElse of expr * ty * expr * expr
     | Assign of var_name * expr
