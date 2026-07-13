@@ -38,17 +38,15 @@ let run_file (root : string) : unit =
   let rbs_chan = open_in rbs_file in
   let rb_program = parse_with Parser.rb_program false rb_chan rb_file in
   let rbs_program = parse_with Parser.rbs_program true rbs_chan rbs_file in
-  print_endline "type truthy = ~(() | false)";
-  print_endline "val undefined: 'a";
-  print_endline "val opaque: 'a";
-  print_endline "val rec: ('a -> 'a) -> 'a";
-  print_endline "let extract m = match m {} with | V(v, _) -> v | R(r) -> r end\n";
+  let inheritance_registry = Translation.Rbs.build_inheritance_registry rbs_program in
+  print_endline Translation.prelude;
   rbs_program
-    |> Translation.Rbs.program
+    |> Translation.Rbs.program inheritance_registry
     |> List.concat_map Pretty.display_top_level
     |> Pretty.print_display;
+  print_newline ();
   rb_program
-    |> Translation.Ruby.program
+    |> Translation.Ruby.program inheritance_registry
     |> List.concat_map Pretty.display_top_level
     |> Pretty.print_display;
   exit ()

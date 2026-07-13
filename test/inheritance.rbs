@@ -1,0 +1,15 @@
+class A
+  @x: Integer
+  def initialize: () -> top
+  def self.id: (Integer x) -> Integer
+end
+
+class B < A
+  @y: Integer
+
+  def choose: ((true | false) b) -> Integer
+end
+
+class C < B
+  @z: Integer
+end
