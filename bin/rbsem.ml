@@ -41,6 +41,11 @@ let run_file (root : string) : unit =
   let rbs_file = root ^ ".rbs" in
   let rb_chan = open_in rb_file in
   let rbs_chan = open_in rbs_file in
+  let filename =
+    if !output_file = ""
+      then (root ^ ".ml")
+      else !output_file
+  in
   let out_chan =
     if !to_stdout
       then stdout
@@ -63,6 +68,7 @@ let run_file (root : string) : unit =
     |> List.concat_map Pretty.display_top_level
     |> Pretty.print_display out_chan;
   close_out out_chan;
+  if not !to_stdout then print_endline ("Wrote output to " ^ filename ^ ".");
   exit ()
 
 let run () =
