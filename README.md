@@ -1,6 +1,5 @@
 # RbSem
 
-
 ### Usage
 
 You must provide both a ruby file and a RBS file, formatted as `my_file.rb` and `my_file.rbs` in the same directory.
@@ -23,6 +22,8 @@ dune exec bin/rbsem.exe -- my_file.rb --
 ```
 
 The output is intended to be pasted into [MLSem](https://e-sh4rk.github.io/MLsem/).
+
+Several tests are available in the [`test/`](test/) folder.
 
 ### TODO
 - some binary operations for testing
