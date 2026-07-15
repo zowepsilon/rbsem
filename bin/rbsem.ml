@@ -1,6 +1,11 @@
 open Rbsem
 
-let arg_params = []
+let to_stdout = ref false
+let output_file = ref ""
+let arg_params = [
+  ("-o", Arg.Set_string output_file, "Output file");
+  ("--", Arg.Set to_stdout, "Output to stdout");
+]
 
 let ok = ref true
 let exit () = if !ok then exit 0 else exit 255
@@ -36,19 +41,28 @@ let run_file (root : string) : unit =
   let rbs_file = root ^ ".rbs" in
   let rb_chan = open_in rb_file in
   let rbs_chan = open_in rbs_file in
+  let out_chan =
+    if !to_stdout
+      then stdout
+    else if !output_file = ""
+      then open_out (root ^ ".ml")
+    else
+      open_out !output_file
+  in
   let rb_program = parse_with Parser.rb_program false rb_chan rb_file in
   let rbs_program = parse_with Parser.rbs_program true rbs_chan rbs_file in
   let inheritance_registry = Translation.Rbs.build_inheritance_registry rbs_program in
-  print_endline Translation.prelude;
+  output_string out_chan Translation.prelude;
   rbs_program
     |> Translation.Rbs.program inheritance_registry
     |> List.concat_map Pretty.display_top_level
-    |> Pretty.print_display;
-  print_newline ();
+    |> Pretty.print_display out_chan;
+  output_string out_chan "\n";
   rb_program
     |> Translation.Ruby.program inheritance_registry
     |> List.concat_map Pretty.display_top_level
-    |> Pretty.print_display;
+    |> Pretty.print_display out_chan;
+  close_out out_chan;
   exit ()
 
 let run () =

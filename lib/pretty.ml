@@ -453,13 +453,12 @@ and display_top_level (tl : MlSem.top_level) : (int * string) list =
       display_ty ty |> append_prefix prefix
   | TLTy _ -> failwith "TODO"
 
-and print_display : (int * string) list -> unit =
+and print_display (channel : out_channel): (int * string) list -> unit =
   function
   | [] -> ()
   | (indent, line) :: rest ->
-      String.make (indent_size * indent) ' ' |> print_string;
-      print_endline line;
-      print_display rest
+      String.make (indent_size * indent) ' ' ^ line ^ "\n" |> output_string channel;
+      print_display channel rest
 
 let test1 () =
   let open MlSem in
@@ -470,7 +469,7 @@ let test1 () =
     TyNot (TyConstr ("C", TyName "x")), body2;
   ]) in
   let expr = Fun (["hihi"], expr) in
-  display_expr expr |> print_display
+  display_expr expr |> print_display stdout
 
 let test2 () =
   let open MlSem in
@@ -479,12 +478,12 @@ let test2 () =
     "x", Lit LitTrue;
     "y", Lit LitFalse;
   ]) in
-  display_expr expr |> print_display
+  display_expr expr |> print_display stdout
 
 let test3 () =
   let open MlSem in
   let expr = IfIsThenElse (Var "xxkisqojdiqjsidojqsidjoisqjdiqsjodjqsoidxxkisqojdiqjsidojqsidjoisqjdiqsjodjqsoidxxkisqojdiqjsidojqsidjoisqjdiqsjodjqsoid", TyVar "a", Var "y", Var "z") in
-  display_expr expr |> print_display
+  display_expr expr |> print_display stdout
 
 let test4 () =
   let open MlSem in
@@ -494,12 +493,12 @@ let test4 () =
 
   let s4 = Assign ("a", Var "v") in
   let expr = Seq (Seq (s1, s2), Seq (s3, s4)) in
-  display_expr expr |> print_display
+  display_expr expr |> print_display stdout
 
 let test5 () =
   let open MlSem in
   let expr = App (Var "x", App (Var "y", Var "z")) in
-  display_expr expr |> print_display
+  display_expr expr |> print_display stdout
 
 
 let test6 () =
@@ -509,7 +508,7 @@ let test6 () =
     "y", TyName "int";
     "z", TyName "int";
   ], TailRow (RowAnd (RowOr (RowVar "a", RowVar "b"), RowVar "c"))) in
-  display_ty ty |> print_display
+  display_ty ty |> print_display stdout
 
 let test7 () =
   let open MlSem in
@@ -519,4 +518,4 @@ let test7 () =
     "z", TyName "int";
   ], TailRow (RowAnd (RowOr (RowVar "a", RowVar "b"), RowVar "c"))) in
   let tl = TLTy [("x", ["a"; "b"], ty)] in
-  display_top_level tl |> print_display
+  display_top_level tl |> print_display stdout

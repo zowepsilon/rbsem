@@ -26,6 +26,7 @@ type truthy = ~(() | false)
 val undefined: 'a
 val opaque: 'a
 val rec: ('a -> 'a) -> 'a
+
 "
 
 let fresh =
