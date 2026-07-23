@@ -24,6 +24,7 @@ let rec or_to_meth_and ty =
 %token KW_SYMBOL
 %token KW_TOP
 %token KW_BOT
+%token KW_BOOL
 %token EOF
 %token <string> CLASS_IDENT
 %token <string> IDENT
@@ -103,6 +104,7 @@ expr:
   | x=IDENT EQ e=expr { Ruby.LocalAssign (x, e) }
   | AT x=IDENT EQ e=expr { Ruby.InstAssign (x, e) }
   | KW_IF b=expr if_sep e1=expr_group KW_ELSE e2=expr_group KW_END { Ruby.IfThenElse (b, e1, e2) }
+  | KW_IF b=expr if_sep e1=expr_group KW_END { Ruby.IfThenElse (b, e1, Ruby.Nil) }
   | KW_RETURN e=expr { Ruby.Return e }
 
 if_sep:
@@ -137,6 +139,7 @@ ty:
   | KW_NIL              { Rbs.TyNil }
   | KW_TOP              { Rbs.TyNot Rbs.TyBot }
   | KW_BOT              { Rbs.TyBot }
+  | KW_BOOL             { Rbs.TyOr (TyLit LitFalse, TyLit LitTrue) }
   | l=lit               { Rbs.TyLit l }
   | c=CLASS_IDENT       { Rbs.TyClass c }
   | t1=ty BAR t2=ty     { Rbs.TyOr (t1, t2) }
@@ -146,7 +149,9 @@ ty:
   | TILDE t=ty          { Rbs.TyNot t }
 
 %inline fun_ty:
-  LPAREN args=separated_list(COMMA, t=ty IDENT { t }) RPAREN ARROW u=ty { Rbs.TyFun (args, u) }
+  | LPAREN RPAREN ARROW u=ty { Rbs.TyFun ([], u) }
+  | LPAREN first=ty COMMA rest=separated_list(COMMA, ty) RPAREN ARROW u=ty { Rbs.TyFun (first::rest, u) }
+  | LPAREN arg=ty RPAREN ARROW u=ty { Rbs.TyFun ([arg], u) }
 
 (* utils *)
 newline_list(X, END):

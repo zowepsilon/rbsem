@@ -26,6 +26,9 @@ The output is intended to be pasted into [MLSem](https://e-sh4rk.github.io/MLsem
 Several tests are available in the [`test/`](test/) folder.
 
 ### TODO
+- use and in type declarations
+- `>` and `:>`
+
 - some binary operations for testing
 - automatic attr analysis
 - attr_reader/attr_writer/attr_accessor

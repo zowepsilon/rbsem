@@ -1,15 +1,33 @@
 class A
   @x: Integer
   def initialize: () -> top
-  def self.id: (Integer x) -> Integer
+  def id: (A) -> Integer
+
+
+  def x: () -> Integer
 end
 
 class B < A
   @y: Integer
 
-  def choose: ((true | false) b) -> Integer
+  def choose: (true | false) -> Integer
+  def initialize: () -> top
+
+  def id: (B) -> Integer
+  def y: () -> Integer
+
 end
 
 class C < B
   @z: Integer
+  def initialize: () -> top
+  
+  def z: () -> Integer
+end
+
+class Other
+  def self.test: () -> top
+
+
+  def self.cast: (B) -> A
 end

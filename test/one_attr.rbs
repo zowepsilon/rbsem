@@ -1,5 +1,7 @@
 class A
-   @x : Integer
+   @x: Integer
 
-   def initialize: (Integer x) -> top
+   def initialize: (Integer) -> top
+   def get_x: () -> Integer
+   def equal: (self) -> Integer
 end

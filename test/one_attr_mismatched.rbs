@@ -1,5 +1,5 @@
 class A
    @x : Integer
 
-   def initialize: (Symbol x) -> top
+   def initialize: (Symbol) -> top
 end

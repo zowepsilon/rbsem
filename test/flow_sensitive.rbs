@@ -1,0 +1,7 @@
+class Test
+  def self.swap: (bool) -> Integer
+               
+
+  def self.swap_precise:
+    (true) -> 2 | (false) -> 1
+end

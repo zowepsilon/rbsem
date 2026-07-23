@@ -60,6 +60,7 @@ rule token = parse
   | "Symbol"          { KW_SYMBOL }
   | "top"             { KW_TOP }
   | "bot"             { KW_BOT }
+  | "bool"            { KW_BOOL }
   | ':' (ident as s)  { SYMBOL s }
   | ident as i        { IDENT i }
   | constr as i       { CLASS_IDENT i }

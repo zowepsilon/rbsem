@@ -260,7 +260,7 @@ let rec display_expr (e: MlSem.expr) : (int * string) list =
       in
       let_part @ e2
   | Cast (e', ty) ->
-      let e' = paren_expr e e' |> append_prefix "(" in
+      let e' = sparen_expr e e' |> append_prefix "(" in
       let ty = display_ty ty |> append_suffix ")" in
       if len_of_display 0 e' <= max_line_width then (
         let e' = List.hd e' |> snd in
@@ -365,6 +365,11 @@ and display_ty (t : MlSem.ty) : (int * string) list =
 
 and paren_expr (main_expr : MlSem.expr) (sub_expr : MlSem.expr) : (int * string) list =
   if prec_expr sub_expr <= prec_expr main_expr
+  then display_expr sub_expr
+  else always_paren_expr sub_expr
+
+and sparen_expr (main_expr : MlSem.expr) (sub_expr : MlSem.expr) : (int * string) list =
+  if prec_expr sub_expr < prec_expr main_expr
   then display_expr sub_expr
   else always_paren_expr sub_expr
 
