@@ -21,10 +21,33 @@
     url = {https://www.ruby-lang.org/en/},
 }
 
+@online{TypeScript,
+    title = {TypeScript},
+    author = {{Microsoft}},
+    url = {https://www.typescriptlang.org/},
+}
+
+@online{mypy,
+    title = {mypy},
+    url = {https://www.mypy-lang.org/index.html},
+}
+
 @online{RBS,
     title = {RBS},
     author = {{The Ruby Community}},
     url = {https://github.com/ruby/rbs},
+}
+
+@online{Steep,
+    title = {Steep},
+    author = {Soutaro Matsumoto},
+    url = {https://github.com/soutaro/steep},
+}
+
+@online{Sorbet,
+    title = {Sorbet},
+    author = {Stripe},
+    url = {https://sorbet.org/},
 }
 
 @online{RbSem,
@@ -39,19 +62,6 @@
     url = {https://docs.ruby-lang.org/en/4.0/Object.html#method-i-is_a-3F},
 }
 
-@Inbook{Castagna2024,
-    author="Castagna, Giuseppe",
-    editor="Meyer, Bertrand",
-    title="Programming with Union, Intersection, and Negation Types",
-    bookTitle="The French School of Programming",
-    year="2024",
-    publisher="Springer International Publishing",
-    pages="309--378",
-    isbn="978-3-031-34518-0",
-    doi="10.1007/978-3-031-34518-0_12",
-    url="https://arxiv.org/pdf/2111.03354"
-}
-
 @online{RubySyntax,
     title = {Ruby syntax documention},
     author = {{The Ruby Community}},
@@ -62,4 +72,47 @@
     title = {RBS syntax documention},
     author = {{The Ruby Community}},
     url = {https://github.com/ruby/rbs/blob/master/docs/syntax.md},
+}
+
+@article{CDV23,
+	author = {Giuseppe Castagna and Guillaume Duboc and José Valim},
+	title = {The Design Principles of the {Elixir} Type System},
+	journal = {The Art, Science, and Engineering of Programming},
+	year = {2024},
+	volume = {8},
+	number = {2},
+	note = {Video of the presentation I gave at the Erlang Symposium 2023: \url{https://youtu.be/VYmo867YF6g}. Also available, Guillaume Duboc's presentation at ElixirConf EU 2023: \url{https://www.youtube.com/watch?v=gJJH7a2J9O8}},
+}
+
+
+@article{SemSub,
+    author = {Frisch, Alain and Castagna, Giuseppe and Benzaken, V\'{e}ronique},
+    title = {Semantic subtyping: Dealing set-theoretically with function, union, intersection, and negation types},
+    year = {2008},
+    issue_date = {September 2008},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {55},
+    number = {4},
+    issn = {0004-5411},
+    url = {https://doi.org/10.1145/1391289.1391293},
+    doi = {10.1145/1391289.1391293},
+    abstract = {Subtyping relations are usually defined either syntactically by a formal system or semantically by an interpretation of types into an untyped denotational model. This work shows how to define a subtyping relation semantically in the presence of Boolean connectives, functional types and dynamic dispatch on types, without the complexity of denotational models, and how to derive a complete subtyping algorithm.},
+    journal = {J. ACM},
+    month = sep,
+    articleno = {19},
+    numpages = {64},
+    keywords = {union types, negation types, intersection types, higher-order functions, Subtyping}
+}
+
+@incollection{Cas24,
+	author = {Giuseppe Castagna},
+	title = {Programming with Union, Intersection, and Negation Types},
+	booktitle = {The French School of Programming},
+	publisher = {Springer},
+	year = {2024},
+	editor = {Bertrand Meyer},
+	pages = {309--378},
+	month = {mar},
+	note = {ISBN 978-3-031-34517-3. Preprint at  \href{https://arxiv.org/abs/2111.03354}{arXiv:2111.03354}},
 }

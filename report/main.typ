@@ -78,37 +78,151 @@
 
 = Introduction
 
-#TODO
+Ruby @Ruby is a dynamically-typed programming language.
+It has several static type checkers, which are unsound.
+On the other hand, the theory of set-theoretic types and semantic subtyping
+is successfully being used in other dynamic languages such as Elixir and Python.
+In this work we specify and prototype the framework for a new type checker for Ruby
+based on semantic subtyping. We translate a fragment of Ruby and RBS to MLsem
+code to harness its implementation of set-theoretic types.
+This encoding allows us to precisely type Ruby code using union, intersection,
+negation types and control flow-sensitive informations.
+
+// #TODO: présentation du plan
 
 = Background
 
-#TODO
-Python, JS, 
-steep, typescript,
-Sorbet,
-unsound, example,
-we follow elixir which is sound 
+Lately, efforts to type dynamic languages have seen sucessful developments. One of the most well-known example is TypeScript @TypeScript, a superset of Javascript with static typing.
+Python has an official type checker called mypy @mypy and supports type annotations
+meant to be used by external type checkers. Elixir is slowly integrating static typing
+into its compiler @CDV23.
+All of these type checkers have been widely adopted by their specific user bases.
 
 == Ruby & RBS
 
-Ruby @Ruby sqidjqsd \
-RBS @RBS
+Ruby is a dynamically typed and object oriented programming language.
+Its main features are classes, modules, mixins and advanced runtime reflection.
 
-#TODO
+The base language has no support for static typing or even type annotation syntax,
+but several external static type checkers exist and have seen widespread use
+within the Ruby community: Steep @Steep and Sorbet @Sorbet.
 
-== Set-theoretic types & semantic subtyping
+Steep is structured around #strong[R]u#strong[B]y #strong[S]ignature files (RBS) @RBS,
+Ruby's official format for type signatures: 
+it type checks Ruby code against one or several RBS files.
+Steep is a nominal type system, featuring gradual typing, union and intersection
+types, classes with inheritance and method overloading, and structural interfaces. 
 
-pq utiliser ça language dyn, union (cases), intersection pour les fonctions précises
-négations cas par défaut
+We will be mainly talking about Steep since Sorbet has similar features,
+the biggest difference being that it uses inline type annotations instead of RBS.
 
-on va traduire en MLsem
+The main issue of these type systems is that they are not sound,
+because they always treat subclasses as subtypes.
+This general issue was first brought up in @BruEtAl96. 
+For instance, this following code (using inline signatures for conciseness) is not sound:
+
+#figure(caption: "Unsound example in Steep")[
+  ```ruby
+  class Point
+    #: (Integer, Integer) -> void
+    def initialize(x, y)
+      @x = x
+      @y = y
+    end
+    #: (self) -> bool
+    def equal(other)
+      @x == other.x && @y == other.y
+    end
+  end
+
+  class ColorPoint < Point
+    #: (Integer, Integer, String) -> void
+    def initialize(x, y, color)
+      super(x, y)
+      @color = color
+    end
+    #: (self) -> bool
+    def equal(other)
+      @x == other.x && @y == other.y && @color == other.color
+    end
+  end
+  ```
+]
+
+Given some `p1: ColorPoint` and `p2: Point`, since `ColorPoint` is a subtype of `Point`,
+we can cast `p1` to a `p: Point`. Then the method call `p.equal(p2)` type checks, but
+`ColorPoint#equal` is called with a `Point` argument while it expects a `ColorPoint` instance.
+
+== Set-theoretic types & semantic subtyping <SemSubBackground>
+
+Set-theoretic typing models types as sets of values, which can be combined
+using unions, intersections and negations. These type connectors can type very precisely
+common idioms found in dynamic languages, such as type cases, pattern matching
+(using union types `t | u`), function overloading (using intersection types `t & u`)
+and fallback behavior (using negation types `~t`)#footnote[where `t` and `u` denote types.].
+
+A basic set-theoretic type system has a few essential constructs,
+apart from set operations: the top type `any` and bottom type `empty`,
+tuple types `(t`$""_1$`, ..., t`$""_n$`)` which behave as you would expect, and finally arrow types `t -> u`.
+Given two types `t` and `u`, `t -> u` is the type of all functions that,
+given an argument of type `t`, returns a value of type `u`.
+In particular makes no claim about what happens in case the function is passed
+an argument outside of `t` (i.e. in `~t`).
+There are also singleton types, which contain exactly one value, such as `42`, `true`, etc.
+
+
+For instance, `int | bool` is the union of types `int` and `bool`, i.e. the type of values in either `int` or `bool`. `true | false` is equivalent to `bool`.
+#box[`(int -> string) & (string -> int)`] is the type of functions
+that accept both arguments of type `int` or `string`, and returns a `string` if the argument
+was an `int` and vice versa. The domains may not be disjoint: let's say we have a function
+of type #box[`(a -> c) & (b -> d)`] (where `a`, `b`, `c` and `d` are some fixed types).
+Then passing an argument in `a & b` (in both `a` and `b`) returns a value of type `c & d`.
+One final example: a function that checks whether a value is a `bool` can have type
+#box[`(bool -> true) & (~bool -> false)`].
+
+For a more in-depth introduction to set-theoretic types, see @Cas24.
+
+In the presence of these set-theoretic connectors, the type system must be equipped with
+a robust subtyping relation that behaves in an "natural" way for the programmer, i.e.
+behave like set inclusion. Semantic subtyping defines such relation by making sure
+that the subtyping relation is as large as it can be while remaining sound,
+including important features such as type variables @SemSub.
 
 == MLsem
 
-*Notation.* We note $bb(0)$ the empty type and $emptyset$ the empty row.
+MLSem @MLsem is a experimental research language using OCaml-like syntax and semantic subtyping.
+It is the base implementation of a type checker for the current research on semantic subtyping.
+It is only used for testing and research purposes.
 
-on binary methods, encodage, limites (f-bounded)
-autre grosse limitation, pas de gradual typing
+The syntax of expressions is close to OCaml. Two new features are worth mentioning.
+The first one is the type-coercion expression ```c e :> t```, which coerces an expression
+of type `t'` to some supertype `t` of `t'`, for instance ```c 1 <: (int | bool)```.
+The second one is the type case expression ```ocaml if e1 is t then e2 else e3```,
+which tests whether `e1` is of type `t` and branches accordingly.
+
+The syntax of types is an extension of the one we introduced
+in #link(<SemSubBackground>)[the last section], however the MLsem type system
+supports many more features. We will focus on constructor and records.
+
+Constructors are structural abstract labels that start with a capital letter,
+akin to polymorphic variants in OCaml, atoms in Elixir
+or symbols in Ruby. They can also carry data as an optional argument.
+They have their corresponding types: #box[`Hello : Hello`]
+(the second `Hello` is a singleton type) and #box[`MyInt(67) : MyInt(int)`].
+
+MLsem also supports records. At the expression level, they are exactly like OCaml:
+a literal syntax ```ocaml {x = 42; y = "perl"}```,
+a record update expression ```ocaml {r with y = true}``` and field access `r.x`.
+At the type level, records are structural: they don't need to be declared.
+Record types have several forms: closed records ```ocaml {x : int; y : string}```
+the type of records that have this _exact_ set of keys, open records #box[```ocaml {x : int; y : string ..}```] the type of records that have _at least_ this set of keys,
+record update #box[```ocaml { t with y : bool }```] which update
+the type of an existing record type,
+and finally records with a tail #box[```haskell {x : int; y : string ;; <tail>}```]
+where `<tail>` is a row variable #raw("`x") or a boolean combination of raw variables.
+An intersecton tail #raw("`x & `y") means that the fields of both #raw("`x") and #raw("`x")
+are added, while a union tail means that the fields added are the one in both #raw("`x")
+and #raw("`y") (a record type is contravariant in its tail, like its set of keys).
 
 = Encoding Ruby in MLsem
 
@@ -166,8 +280,8 @@ We formalize a fragment of both Ruby @RubySyntax and RBS @RBSsyntax:
     &#r("F") ::= &&#r("(T")_1, ..., #r("T")_n#r(") -> T") \
     bold("Declaration") space
     &#r("D") ::= &&#r("class") C space space overline(#r("M")) space #r("end") \
-    &sep       | &&#r("class") C #rect[$#r("<") C$] space overline(#r("M")) space #r("end") ("ne pas générer de sous-typage") \
-    &sep       | &&#r("class") C #rect[$#r("<:") C$] space overline(#r("M")) space #r("end") ("vérifier sous-typage") \
+    &sep       | &&#r("class") C #rect[$#r("<") C$] space overline(#r("M")) space #r("end") \
+    &sep       | &&#r("class") C #rect[$#r("<:") C$] space overline(#r("M")) space #r("end")  \
     bold("Member") space
     &#r("M") ::= &&#r("def") f#r(": N") \
     &sep       | &&#r("def initialize: N") \
@@ -187,26 +301,28 @@ We formalize a fragment of both Ruby @RubySyntax and RBS @RBSsyntax:
 
 *Notation.* We note $#r("T")_1 #r("&") #r("T")_2 := #r("not") (#r("not T")_1 | #r("not T")_2)$.
 
-We add a few features to Ruby and RBS for the needs of the formalization (boxed in green).
+We add a few features to Ruby and RBS (boxed in green).
 
 An `attr` $x$ statement inside a class declares an instance variable.
 They are used to translate classes more easily. They can be inserted by
 a preprocessing step that either looks at the attributes defined in RBS or collects
 used instance variables in the Ruby code.
 
-The $%$ type is added to distinguish between the use of `|` for union types
+The `%` type is added to distinguish between the use of `|` for union types
 and for method overloading, only used inside the translation.
 We call $#r("T")_1 #r("%") #r("T")_2$ an _overload_ type.
 Finally, the `not` type is a negation type intended to be used by the programmer.
 
-The inheritance syntax has a different meaning than in current RBS.
+The inheritance syntax has a different meaning than in Steep.
 In our new syntax, `class` $C$ `<` $D$ only implies $C$ is a subclass of $D$,
-not that $C$ is a subtype of $D$. On the other hand, `class` $C$ `<:` $D$ means that $C$ inherits $D$ _and_ that $C$ is a subtype. In the case that the complete signature of $C$ does not allow it to be a subtype of $D$, 
+not that $C$ is a subtype of $D$. On the other hand, `class` $C$ `<:` $D$ means that $C$ inherits $D$ _and_ that $C$ is a subtype. In the case that the complete signature of $C$ does not allow it to be a subtype of $D$, the type checker rejects the signature.
 
 
-We want 2 functions
-  $ [|dot|]_"Ruby" : "Ruby" -> "Expr MLsem" "and" [|dot|]_"RBS" : "RBS" -> "Types MLsem" $
-that together encode the semantic of Ruby programs and types.
+We want 2 functions: $[|dot|]_"Ruby"$ which encodes Ruby code as MLsem expressions,
+and $[|dot|]_"RBS"$ which encodes RBS signatures as MLsem types.
+These two functions together should encode the semantic of Ruby programs and types.
+We type check using MLsem the concatenation of the translated RBS signatures
+and the translated Ruby code.
 
 == Variable scoping and the monadic encoding
 
@@ -270,7 +386,7 @@ we will make this more precise once we have defined the _pure_ and _bind_ operat
 
 *Definition.* The operations associated with the heterogeneous state monad are:
 $ 
-  &"pure" : v -> "hetState"(Gamma, emptyset, v, bb(0))\
+  &"pure" : v -> "hetState"(Gamma, {}, v, #r("empty"))\
   &"pure"(x) := lambda s. space mono(V)(x, s) \
 $
 $
@@ -280,6 +396,7 @@ $
   "bind"(m, f) := &lambda Gamma. "match" m(Gamma) "with" \
                  &| mono(V)(v, Gamma') -> f(v)(Gamma') \
                  &| mono(R)(r) -> mono(R)(r) \
+                 &"end"
 $
 
 For this monad, we will also refer to pure as _value_, i.e. $"value"(x) = lambda s. space mono(V)(x, s)$.
@@ -309,7 +426,7 @@ We use $mono(R)$ as a value that bypasses any remaining computations.
   This is different from the `return` function found in Haskell.
 ]:
 $
-  &"return" : r -> "hetState"(Gamma, emptyset, bb(0), r) \
+  &"return" : r -> "hetState"(Gamma, {}, #r("empty"), r) \
   &"return"(x) := lambda s. space mono(R)(x)
 $
 
@@ -318,14 +435,14 @@ Finally, we introduce operations for manipulating variables :
 *Definition.* Let $mono(x)$ be a Ruby variable. \
   We define an operation for accessing $mono(x)$:
   $
-    &"get" mono(x) : "hetState" ({x: alpha, ..}, emptyset, alpha, bb(0))\
-    &"get" mono(x) = lambda Gamma. space mono(V)(Gamma.#r("x"), Gamma) \ 
+    &"get" mono(x) : "hetState" ({x: alpha, ..}, {}, alpha, #r("empty"))\
+    &"get" mono(x) = lambda s. space mono(V)(s.#r("x"), s) \ 
   $
 
   As well as one for assigning to $mono(x)$:
   $
-    &"set" mono(x) : alpha -> "hetState" (Gamma, {x: alpha}, alpha, bb(0)) \
-    &"set" mono(x) space v = lambda Gamma. space mono(V)(v, {Gamma "with" #r("x") = v}]) 
+    &"set" mono(x) : alpha -> "hetState" (Gamma, {x: alpha}, alpha, #r("empty")) \
+    &"set" mono(x) space v = lambda s. space mono(V)(v, {s "with" #r("x") = v}]) 
   $
 
 The types of these operations are precise enough to couple types with control flow:
@@ -379,7 +496,7 @@ so the definition of hetState as well as _value_, _return_, _bind_, _get_ and _s
     #transE[#r("nil")] &= "value" #r("()") \
     #transE[#r("self")] &= "value" #r("self") \
     #transE[$#r("E.f(")#r("E")_1, ..., #r("E")_n#r(")")$]
-      &= [|#r("E")|] bind lambda r. space #trans[$#r("E")_1$] bind lambda a_1. space dots.h.c space #trans[$#r("E")_n$] bind lambda a_n. "value" (r.#r("f")""(a_1, ..., a_n)) \
+      &= [|#r("E")|] bind lambda r. space #trans[$#r("E")_1$] bind lambda a_1. space dots.h.c space #trans[$#r("E")_n$] bind lambda a_n. "value" r.#r("f")""(a_1, ..., a_n) \
     #transE[#r("return E")] &= #trans(r("E")) bind "return"\
     #transE[#r("x = E")] &= #trans(r("E")) bind ("set" #r("x"))\
     #transE[#r("@x = E")] &= #trans(r("E")) bind lambda v. ("self :=" {"self" "with self.__attr_"#r("x") = v }; "value" v)\
@@ -415,7 +532,9 @@ the encoding of classes in the next section.
 
 One of Ruby's main features is its classes, which we cannot translate directly in MLsem.
 Classes have several features we want to encode in the type system:
-attributes, methods, inheritance, the `self` type, and nominal (sub)typing.
+attributes, methods, inheritance, the `self` type, nominal typing, and being able to control whether inheritance generates a subtype.
+
+*Notation.* We note `rec : ('a -> 'a) -> 'a` and `opaque : 'a`.
 
 === Translating classes at the type level
 
@@ -427,19 +546,6 @@ The translation of classes is composed of two parts: the RBS declaration is tran
 and the Ruby code is translated into an MLsem expression.
 
 Let's take a simple class signature as an example:
-
-// ```ruby
-// # Ruby
-// class A
-//   attr x
-//   def initialize(x)
-//     @x = x
-//   end
-//   def get_x()
-//     @x
-//   end
-// end
-// ```
 
 #figure(caption: [`IntWrapper` RBS class signature])[
   ```ruby
@@ -483,14 +589,14 @@ Finally, the type `tyIntWrapper` closes the recursion, instantiating the self ty
 
 We give another example to illustrate how inheritance and nominal typing is encoded:
 
-#figure(caption: [Inheritance example])[
+#figure(caption: [Inheritance with subtyping example])[
   ```ruby
   class A
-    def equal: (self) -> Bool
+    def get_level: () -> Integer
   end
-  class B < A end
-  class C < B end
-  class D < A end
+  class B <: A end
+  class C <: B end
+  class D <: A end
   ```
 ] <inherit_ex>
 
@@ -499,7 +605,7 @@ This example produces the following types (omitting the class types):
 #figure(caption: [Translation of @inherit_ex])[
   ```ml
   type tyARec('self) =
-    { __name : ~Inst__A; eq : 'self -> tyBool .. }
+    { __name : ~Inst__A; eq : () -> int .. }
   type tyA = tyARec(tyA)
 
   type tyBRec('self) =
@@ -517,9 +623,9 @@ This example produces the following types (omitting the class types):
 ]
 
 We use the record type update syntax to include the parent's fields into the type.
-The `__name` field encodes nominal typing, ensuring that two different classes with the same
-signatures stay distinct for the type checker. However, we want to allow a subclass to be
-a subtype of its parent class whenever it is sensible,
+The `__name` field encodes nominal typing, ensuring that
+two different classes with the same signatures stay distinct for the type checker.
+However, we want to allow a subclass to be a subtype of its parent class,
 so the field must take into account every transtive parents in the inheritance tree (@inherit_tree).
 We negate the type to account for variance: we want the `__name` field of a subclass to be 
 a subtype of the `__name` of its parent class. Making the `__name` field contravariant with respect
@@ -539,26 +645,50 @@ to inheritance mimics the fact that the set of keys in a record is contravariant
   })
 ) <inherit_tree>
 
-This encoding fixes the issue of subtyping in the presence of inheritance highlighted in @BruEtAl96:
-we have
+Finally, a check is added ensure that the type generated by a `:>` subclass is a subtype:
+
+```ml
+let _checkVal = ((opaque :> tyB) :> tyA)
+```
+
+This encoding fixes the issue of subtyping in the presence of inheritance highlighted in @BruEtAl96
+because the type checker ensures that a subtype is being generated
+when the subclass is explicitly specified to be a subtype. Suppose we have the following signature:
+
+#figure(caption: "Inheritance without subtyping")[
+  ```ruby
+  class A
+    def equal: (self) -> Bool
+  end
+  class B <: A
+  end
+  ```
+]
+
+We get the following types (after simplifying open recursion and record updates):
+
 #no-codly[```ml
-  tyA = { __name : ~Inst__A; eq : tyA -> tyBool .. }
-```]
-and
-#no-codly[```ml
-  tyB = { __name : ~(Inst__A | Inst__B); eq : tyB -> tyBool .. }
+  tyA = { __name : ~Inst__A            ; eq : tyA -> bool .. }
+  tyB = { __name : ~(Inst__A | Inst__B); eq : tyB -> bool .. }
 ```]
 
 Due to `'self` appearing in a contravariant position, `tyB` is not a subtype of `tyA`
-despite `B` inheriting from `A`, thus restoring soundness.
+despite `B` inheriting from `A`, so the subtyping check fails and the signature does not type check, thus restoring soundness.
+We can however inherit from `A` without generating a subtype:
+replacing `class B <: A` by `class B < A` yields the following types:
+
+#no-codly[```ml
+  tyA = { __name : ~Inst__A; eq : tyA -> bool .. }
+  tyB = { __name : ~Inst__B; eq : tyB -> bool .. }
+```]
+
+With `<` inheritance, the `__name` field only refers to the current class.
 
 === Encoding classes in MLsem expressions
 
-*Notation.* We note `rec : ('a -> 'a) -> 'a` and `opaque : 'a`.
-
-
 A class `A` generates a top-level statement of the form (excluding some type coercions for clarity):
 
+#figure(caption: [Top level statement generated from class `A`])[
 ```ml
 let classA =
   rec (fun (self : tyClassA) ->
@@ -570,8 +700,11 @@ let classA =
   )
 ```
 
+]
+
 The `new` class method has a particular translation of the form (again, omitting type coercions):
 
+#figure(caption: [The `new` field generated from class `A`])[
 ```ml
 new = 
   fun args -> rec (fun (self : tyA) -> 
@@ -584,6 +717,7 @@ new =
     self
   )
 ```
+]
 
 In both the class and instance translations, the `name` field is present to reflect
 our type-level encoding. Similarly, an attribute is translated to a special field
@@ -599,16 +733,18 @@ A translation of methods needs to:
 - translate the body of the function
 - extract the return value from the monad.
 
-*Definition.* We defined an _extract_ operation:
+*Definition.* We define an _extract_ operation:
 $
   "extract"(("x"_1, ..., "x"_n), #r("E")) := &"match" #trans[#r("E")]""({ "x"_1 = "x"_1; ...; "x"_n = "x"_n }) "with" \
                                              &| mono(V)(v, #r("_")) -> v \
                                              &| mono(R)(r) -> r \
+                                             &"end"
 $
 The _extract_ operation takes a list of Ruby variables and an expression.
 
 We can then define the translation of a method as:
 
+#figure(caption: [Translation of methods])[
 #table(
   align: center+horizon,
   columns: (1fr, auto, 1fr),
@@ -625,11 +761,24 @@ We can then define the translation of a method as:
       extract((x, y), <body>)
   ```]
 )
+]
 
 The fact that the monadic state is only managed by the method means that the monadic encoding is transparent
 at the type level, so that function types are not polluted with an extra state argument.
 
 RBS allows the programmers to overload methods:
+
+#figure(caption: "Method overloading in RBS")[
+#columns(2)[
+```ruby
+def process: (1) -> String
+           % (Integer) -> Integer 
+           % (Symbol) -> Symbol
+```
+
+#align(center)[(formalized syntax)]
+
+#colbreak()
 
 ```ruby
 def process: (1) -> String
@@ -637,7 +786,10 @@ def process: (1) -> String
            | (Symbol) -> Symbol
 ```
 
-Contrary to MLsem's intersection types, this overloading mecanism is order-sensitive.
+#align(center)[(real RBS syntax)]
+]]
+
+Contrary to MLsem intersection types, this overloading mecanism is order-sensitive.
 If one passes `1` to `process`, the first overload matches the type of the argument passed and
 the second overload is never considered. This type can be rewritten using intersection types:
 
@@ -647,13 +799,7 @@ the second overload is never considered. This type can be rewritten using inters
   ```
 ]
 
-*Notation.* We note this overloading operator with `%`. \
-For instance the type of `process` is written as:
-$
-  #r("((1) -> String) % ((Integer) -> Integer) % ((Symbol) -> Symbol)").
-$
-
-*Definition.* We defined _domain_ and _codomain_ functions for RBS types:
+*Definition.* We define _domain_ and _codomain_ functions for RBS types:
 $
   "dom"(#r("T")) &:= cases(
     #r("U") &&"if" #r("T") = #r("(U) -> R"),
@@ -681,10 +827,17 @@ The remaining cases of $transT(dot)$ are straightforward.
 
 == Technical details of the full translation
 
-#TODO
-
 The full translation can be found in @full_trans.
 
+To actually implement the translation, you need to insert `attr x` statements
+in the Ruby code, since you don't declare attributes in Ruby. This can be done simply
+by collecting every attribute mentioned in the class and then inserting the `attr` statements.
+
+Another pass is needed to build the inheritance hierarchy, to generate the `__name` field (this can be done during the translation of the RBS signatures).
+
+You can then translate the RBS, and then concatenate it with the translation of
+the Ruby code. You also need to prepend the definition of the several constants
+we needed during the translation (as shown in @begin_trans).
 
 = Prototype
 
@@ -693,12 +846,12 @@ Several examples can be found in the `test` folder of the repository.
 The output can be read (the generated MLsem code should be nicely formatted)
 or pasted directly into MLsem @MLsem.
 
-#TODO: give examples of infered types
-
 We give several examples of programs that we are able to type check using
 our translation and MLsem:
 
+#box[
 #columns(2)[
+  #v(1em)
   #figure(caption: "Flow-sensitive scopes")[
     ```ruby
     def f(b)
@@ -724,23 +877,65 @@ our translation and MLsem:
   def f: (bool) -> Integer
   def f: (true) -> 1 | (false) -> 2
   ```
-
+  
   Our encoding is capable of capturing control flow-based typing information.
   Trying to access `x` outside of the second `if` expression would result
-  in a type error because `x` is not be defined in case that `b` is falsy,
+  in a type error because `x` is not defined in the case that `b` is falsy,
   but the encoding is precise enough to analyze the branches.
   It can also determine that `z` is defined in all cases after the second `if` expression.
-  This sort of flow-based analysis can become very useful if we integrate
+  This sort of flow-based analysis can become very useful if integrated with
   type cases in the future (using `Object#is_a?` @ruby_is_a).
-]
+]]
 
-#TODO: example for inheritance $arrow.r.double.not$ subtyping
+This next example involves reading and writing to an attribute:
+
+#figure(caption: "Methods and attributes inside a class")[
+#columns(2)[
+  ```ruby
+  class A
+    attr x
+
+    def initialize(x)
+      @x = x
+    end
+
+    def get_x()
+      @x
+    end
+  end
+  ```
+
+  #colbreak()
+
+  #v(3em)
+  ```ruby
+  class A
+    @x: Integer
+
+    def initialize: (Integer) -> top
+    def get_x: () -> Integer
+  end
+  ```
+]]
+
+Changing ```ruby initialize: (Integer) -> top``` to ```ruby initialize: (Symbol) -> top```
+makes the example no longer compile, as expected, since the assignment `@x = x`
+tries to assign a `Symbol` where an `Integer` is expected.
 
 = Conclusion
 
-#TODO: proof of semantic preservation, type variables, f-bounded polymorphism
+We have encoded Ruby programs inside MLsem, allowing us to type Ruby programs
+using the existing semantic subtyping framework, addressing soundness holes
+(assuming the translation is indeed correct) by providing new constructs
+(the two types of inheritance). We implemented a small type checker for Ruby
+using the translation we defined, which can be used for further testing. 
+The various examples tested using our prototype hint that set-theoretic types
+and semantic subtyping are a useful approach to type Ruby programs.
 
-future work : grad typing
+The next step is integrate more features to our encoding, such as type variables,
+f-bounded polymorphism and gradual typing. It would be also useful to have a proof
+that our encoding is sound and preserves operational semantics, as this would
+increase our confidence in the encoding.
 
 #bibliography("ref.bib", full: true)
 
@@ -749,7 +944,231 @@ future work : grad typing
 
 = Full translation <full_trans>
 
-#TODO: add full translation
+== Featherweight Ruby & RBS
+
+#[
+  #set rect(stroke: green, radius: 4pt, inset: (x: 0% + 2pt))
+  $
+    
+    bold("Expression") space
+    &#r("E") ::= &&#r("L") | #r("X") | C | #r("self")
+              | #r("nil") | #r("E.")x#r("(")#r("E")_1, ..., #r("E")_n#r(")") | #r("X = E") \
+    &sep      | &&#r("if E; E else E end") | #r("E;E") | #r("return E") \
+              
+    bold("Literal") space
+    &#r("L") ::= &&s | n | #r("true") | #r("false") \
+
+    bold("Statement") space
+    &#r("S") ::= &&#r("class") C" "(#r("<") C)^? " "overline(#r("K")) #r("end") \
+
+    bold("Class statement") space
+    &#r("K") ::=&&#r("def") f#r("(")x_1, ..., x_n#r(")") #r("E") #r("end")  \
+    &sep      | &&#r("def initialize(")x_1, ..., x_n#r(")") #r("E") #r("end")  \
+    &sep      | &&#r("def") #r("self.")f#r("(")x_1, ..., x_n#r(")") #r("E") #r("end") \
+    &sep      | &&#rect[$#r("attr") x$] \
+
+    bold("Binder") space
+    &#r("X") := &&x | #r("@")x \
+    \
+    bold("Type") space
+    &#r("T") ::= &&#r("B") | #r("L") | C
+               | (#r("T | T")) | #rect[$#r("T % T")$]
+               | #rect[$#r("not T")$] \
+               
+    bold("Base type") space
+    &#r("B") ::= &&#r("Symbol") | #r("Integer") | #r("self") | #r("nil") | #r("bot") \
+    bold("Function type") space
+    &#r("F") ::= &&#r("(T")_1, ..., #r("T")_n#r(") -> T") \
+    bold("Declaration") space
+    &#r("D") ::= &&#r("class") C space space overline(#r("M")) space #r("end") \
+    &sep       | &&#r("class") C #rect[$#r("<") C$] space overline(#r("M")) space #r("end") \
+    &sep       | &&#r("class") C #rect[$#r("<:") C$] space overline(#r("M")) space #r("end")  \
+    bold("Member") space
+    &#r("M") ::= &&#r("def") f#r(": N") \
+    &sep       | &&#r("def initialize: N") \
+    &sep       | &&#r("def") #r("self.")f#r(": N") \
+    &sep       | &&#r("@")x#r(": T") \
+    bold("Method type") space
+    &#r("N") ::= &&#r("F")_1 #r("%") ... #r("%") #r("F")_n \
+    &sep       | &&#r("F")_1 #r("&") ... #r("&") #r("F")_n \
+  $
+
+  where: #h(16em)
+    - #align(left)[$n$ ranges over integers]
+    - #align(left)[$x, f$ range over variable names]
+    - #align(left)[$s$ ranges over symbol names]
+    - #align(left)[$C$ ranges over class names]
+]
+
+*Notation.* We note $#r("T")_1 #r("&") #r("T")_2 := #r("not") (#r("not T")_1 | #r("not T")_2)$.
+
+== Monadic encoding
+
+#let bind = $>>#move(dx: -0.6em)[=]#h(-0.4em)$
+#let bindr = $>>#move(dx: -0.6em)[=]#h(-0.6em)_r#h(0.2em)$
+
+$
+  &#r("hetState")""(Gamma, Delta, v, r) := { ;; Gamma } -> [mono(V)(v, { ;; Gamma #r("&") Delta }) | mono(R)(r)] \
+  &#h(3em) "where" Gamma, Delta  "are row variables and" v, r "are type variables."
+$
+  
+
+$ 
+  &"pure" : v -> "hetState"(Gamma, {}, v, #r("empty"))\
+  &"pure"(x) := lambda s. space mono(V)(x, s) \
+$
+$
+  "bind" : &"hetState" (Gamma, Delta, v, r)  \
+           &-> (v -> "hetState" (Gamma #r("&") Delta, Delta', b, r)) \
+           &-> "hetState" (Gamma, Delta #r("&") Delta', b, r)\ 
+  "bind"(m, f) := &lambda Gamma. "match" m(Gamma) "with" \
+                 &| mono(V)(v, Gamma') -> f(v)(Gamma') \
+                 &| mono(R)(r) -> mono(R)(r) \
+                 &"end"
+$
+$
+  &"return" : r -> "hetState"(Gamma, {}, #r("empty"), r) \
+  &"return"(x) := lambda s. space mono(R)(x)
+$
+$
+  &"get" mono(x) : "hetState" ({x: alpha, ..}, {}, alpha, #r("empty"))\
+  &"get" mono(x) = lambda s. space mono(V)(s.#r("x"), s) \ 
+$
+$
+  &"set" mono(x) : alpha -> "hetState" (Gamma, {x: alpha}, alpha, #r("empty")) \
+  &"set" mono(x) space v = lambda s. space mono(V)(v, {s "with" #r("x") = v}]) 
+$
+
+*Notation.* _value_ := _pure_
+
+*Notation.* $m bind f := "bind" m space f$
+
+== Ruby Translation
+
+#figure(caption: "Beginning of a translated file")[```ocaml
+type truthy = ~(false | ())
+val opaque: 'a
+val rec: ('a -> 'a) -> 'a
+```] <begin_trans>
+
+$
+  #transE[#r("L")] &= "value" #r("L") \
+  #transE[#r("x")] &= "get" #r("x") \
+  #transE[#r("@x")] &= "value self.__attr_"#r("x") \
+  #transE[$C$] &= "value" C \
+  #transE[#r("nil")] &= "value" #r("()") \
+  #transE[#r("self")] &= "value" #r("self") \
+  #transE[$#r("E.f(")#r("E")_1, ..., #r("E")_n#r(")")$]
+    &= [|#r("E")|] bind lambda r. space #trans[$#r("E")_1$] bind lambda a_1. space dots.h.c space #trans[$#r("E")_n$] bind lambda a_n. "value" r.#r("f")""(a_1, ..., a_n) \
+  #transE[#r("return E")] &= #trans(r("E")) bind "return"\
+  #transE[#r("x = E")] &= #trans(r("E")) bind ("set" #r("x"))\
+  #transE[#r("@x = E")] &= #trans(r("E")) bind lambda v. ("self :=" {"self" "with self.__attr_"#r("x") = v }; "value" v)\
+  #transE[$#r("if E")_1#r("; E")_2#r(" else E")_3#r(" end")$]
+    &= [|#r("E")_1|] bind lambda b. space "if" b "is truthy then" [|#r("E")_2|] "else" [|#r("E")_3|] \
+  #transE[$#r("E")_1 #r(";") #r("E")_2$] &= [|#r("E")_1|] bind lambda#r("_"). space [|#r("E")_2|] \
+$
+
+#TODO: sync translations from my notes with modifications made in the report
+
+$#transS[$#r("class") "name" (#r("<") "sup"))? space #r("K")_1#r(",")...#r(",K")_n " "#r("end")$] =$
+  `
+  let name = rec (fun self ->
+    let mut self = self in {
+    _name = (new_oid () :> ~`$NN^#r("Class") ("name")$`);
+    `$[| #r("K")_1 |]^#r("Class")$`; ...; `$[| #r("K")_n |]^#r("Class")$`
+  })
+  `
+
+$#transKClass[$#r("def initialize(")x#r(")") #r("E") #r("end")$] =$
+  `
+    new = fun `$x$` -> rec (fun self ->
+      let mut self = self in
+      self := {
+      `(`(opaque :> sup_(`name`)) with`)?`
+      _name = (new_oid () :> ~`$NN^#r("Inst") ("name")$`);
+      `$[| #r("K")_1 |]^#r("Inst")$`; ...; `$[| #r("K")_n |]^#r("Inst")$`;
+      };
+      extract `$[|$`E`$|]$`;
+      self
+    );`
+
+$#transKClass[$#r("def") #r("self.")f#r("(")x#r(")") #r("E") #r("end")$] = f$` = fun `$x$` -> `extract $[|$`E`$|]$`;`
+
+$#transKInst[$#r("def") f#r("(")x#r(")") #r("E") #r("end")$] = f$` = fun `$x$` -> `extract $[|$`E`$|]$`;`
+
+$#transKInst[$#r("attr") x$] =$ `self.__attr_`$x$` = undefined;`
+
+== RBS Translation
+
+$VV(t) = "hetState"(Gamma, emptyset, t, bb(0))$
+
+$
+  #transT[`Symbol`] &= #r("enum") \
+  #transT[`Integer`] &= #r("int") \
+  #transT[`self`] &= #r("'self") \
+  #transT[`nil`] &= #r("()") \
+  #transT[`bot`] &= #r("empty") \
+
+  #transT[$#r("T")_1 #r("|") #r("T")_2$] &= #trans[$#r("T")_1$] #r("|") #trans[$#r("T")_2$] \
+  #transT[$#r("T")_1 amp.inv #r("T")_2$] &= [|#r("T")_1|] #r("&") ([|"dom"(#r("T")_2)|] #r("\\") [|"dom"(#r("T")_1)|] #r("->") [|"cod"(#r("T")_2)|])\
+  #transT[$C$] &= C \
+  #transT[#r("not T")] &= #r("~")#trans[`T`] \
+  \
+  #transT[`L`] &= #r("L") \
+  \
+  #transF($#r("(T) -> U")$) &= #trans[$#r("T")$] #r("->") #trans(r("U"))
+$
+
+$
+  "dom"(#r("T")) &= cases(
+    #r("U") &&"if" #r("T") = #r("(U) -> R"),
+    "dom"(#r("T")_1) #r("|") "dom"(#r("T")_2) space &&"if" #r("T") = #r("T")_1 amp.inv #r("T")_2,
+    "undefined" &&"otherwise"
+  ) \
+  "cod"(#r("T")) &= cases(
+    #r("R") &&"if" #r("T") = #r("(U) -> R"),
+    "undefined" space &&"otherwise"
+  )
+$
+
+*Lemma* If $#r("T") = #r("(U) -> R")$ then $[|#r("T")|] = [|"dom"(#r("T")) #r("->") "cod"(#r("T"))|]$.
+
+
+$
+  NN^#r("Inst") (C_1 #r("<") ... #r("<") C_n) &= #r("_C1 |") ... #r("| _Cn") \
+  NN^#r("Class") (C) &= #r("_Class_C | _Class") \
+$
+
+$#transDInst[$#r("class") "name" (#r("<") "sup")^? space #r("M")_1#r(",")...#r(",M")_n " "#r("end")$] =$
+  `
+    type name_('self) = {
+      `(`sup_('self) with`)?`
+      _name: ~`$NN^#r("Inst") (#r("name"))$`;
+      `$[| #r("M")_1 |]^#r("Inst")$`; ...; `$[| #r("M")_n |]^#r("Inst")$`
+    ..}
+    type name = name_(name)
+  `
+
+
+$#transDClass[$#r("class") "name" (#r("<") "sup")^? space #r("M")_1#r(",")...#r(",M")_n " "#r("end")$] =$
+  `
+    type nameClass = {
+      `(`supClass with`)?`  (* name inherits class methods from sup *)
+      _name: ~`$NN^#r("Class") ("name")$`;
+      `$[| #r("M")_1 |]^#r("Class")$`; ...; `$[| #r("M")_n |]^#r("Class")$`
+    ..}
+  `
+
+$
+  #transMInst[$#r("def") x #r(" : N")$] &= x #r(":") [|#r("N")|] \
+  #transMInst[$#r("@")x #r(": T")$] &= #r("__attr_")x #r(":") [| #r("T") |] \
+  #transMClass[$#r("def") #r("self.")x #r(" : N")$] &= x #r(":") [|#r("N")|] \
+  #transMClass[$#r("def initialize:") #r("F")_1 #r("| ")...#r(" | F")_n$] &= #r("new :") [|II(#r("F")_1) amp.inv ... amp.inv II(#r("F")_n)|] \
+  #transMClass[$#r("def initialize:") #r("F")_1 #r("& ")...#r(" & F")_n$] &= #r("new :") [|II(#r("F")_1) #r("& ")...#r(" &") II(#r("F")_n)|] \
+
+  II(#r("F")) &= "dom"(#r("F")) #r("-> Self")
+$
+
 
 = Contexte du stage
 
