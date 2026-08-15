@@ -110,19 +110,19 @@ Ruby is a dynamically typed and object-oriented programming language.
 Its main features are classes, modules, mixins and advanced runtime reflection.
 The base language has no support for static typing or even type annotation syntax,
 but several external static type checkers exist and have seen widespread use
-within the Ruby community foremost: Steep @Steep and Sorbet @Sorbet.
+within the Ruby community, foremost Steep @Steep and Sorbet @Sorbet.
 
 Steep is structured around #strong[R]u#strong[B]y #strong[S]ignature files (RBS) @RBS,
 Ruby's official format for type signatures: 
 it type checks Ruby code against one or several RBS files.
-Steep is a nominal type system, featuring gradual typing, union and intersection
+Steep has a nominal type system, featuring gradual typing, union and intersection
 types, classes with inheritance and method overloading, and structural interfaces. 
 We will be mainly talking about Steep since Sorbet has similar features,
 the biggest difference being that it uses inline type annotations instead of RBS files.
 
+The main issue of these type systems is that they are not sound,
 because they always treat subclasses as subtypes.
-This issuThe main issue of these type systems is that they are not sound
-e was thoroughly studied in @BruEtAl96. 
+This general issue was first brought up in @BruEtAl96. 
 For instance, the following code (using inline signatures and excluding getters for conciseness) is not sound:
 
 #figure(caption: "Unsound example in Steep")[
@@ -164,13 +164,15 @@ an instance of the class. `@x` represents an instance variable
 Given some `p1: ColorPoint` and `p2: Point`, since `ColorPoint` is a subtype of `Point`,
 we can cast `p1` to a `p: Point`. Then the method call `p.equal(p2)` type checks, but
 `ColorPoint#equal` is called with a `Point` argument while it expects a `ColorPoint` instance.
+Despite this unsound behavior, Steep accepts this program.
 
 == Set-theoretic types & semantic subtyping <SemSubBackground>
 
 Set-theoretic typing models types as sets of values, which can be combined
 using unions, intersections and negations. These type connectors can type very precisely
-common idioms found in dynamic languages, such as type cases, pattern matching
+common idioms found in dynamic languages, such as type cases and pattern matching
 (using union types #box[`t | u`]), function overloading (using intersection types `t & u`)
+and fallback behavior (using negation types `~t`)#footnote[where `t` and `u` denote types.].
 
 A basic set-theoretic type system has a few essential constructs,
 apart from set operations: the top type `any` and bottom type `empty`,
@@ -181,9 +183,9 @@ In particular it makes no claim about what happens in case the function is passe
 an argument outside of `t` (i.e. in `~t`).
 There are also singleton types, which contain exactly one value, such as `42`, `true`, etc.
 
-`int | bool` is the union of types `int` and `bool`, i.e. the type of values in either `int` or `bool`. `true | false` is equivalent to `bool`.
+The type `int | bool` is the union of types `int` and `bool`, i.e. the type of values in either `int` or `bool`. `true | false` is equivalent to `bool`.
 #box[`(int -> string) & (string -> int)`] is the type of functions
-that accept both arguments of type `int` or `string`, and returns a `string` if the argument
+that accept both arguments of type `int` or `string`, and return a `string` if the argument
 was an `int` and vice versa. The domains may not be disjoint: let's say we have a function
 of type #box[`(a -> c) & (b -> d)`] (where `a`, `b`, `c` and `d` are some fixed types).
 Then passing an argument in `a & b` (in both `a` and `b`) returns a value of type `c & d`.
@@ -210,7 +212,7 @@ It is only used for testing and research purposes.
 
 The syntax of expressions is close to OCaml. Two new features are worth mentioning.
 The first one is the type-coercion expression ```c e :> t```, which coerces an expression
-of type `t'` to some supertype `t` of `t'`, for instance ```c 42 <: (int | bool)```.
+of type `t'` to some supertype `t` of `t'`, for instance ```c 42 :> (int | bool)```.
 The second one is the type case expression ```ocaml if e1 is t then e2 else e3```,
 which tests whether `e1` is of type `t` and branches accordingly.
 
@@ -219,7 +221,7 @@ in #link(<SemSubBackground>)[the last section], however the MLsem type system
 supports many more features. We will focus on constructors and records.
 
 Constructors are structural abstract labels that start with a capital letter,
-akin to polymorphic variants in OCaml, atoms in Elixir
+akin to polymorphic variants in OCaml, atoms in Elixir,
 or symbols in Ruby. They can also carry data as an optional argument.
 They have their corresponding types: #box[`Hello : Hello`]
 (the second `Hello` is a singleton type) and #box[`MyInt(67) : MyInt(int)`].
@@ -236,7 +238,7 @@ record update #box[```ocaml {t with y : bool}```] which updates
 the type of an existing record type,
 and finally records with a tail #box[```haskell {x : int; y : string ;; <tail>}```]
 where `<tail>` is either a row variable #raw("`x") or a boolean combination of row variables.
-An intersection tail #raw("`x & `y") means that the fields of both #raw("`x") and #raw("`x")
+An intersection tail #raw("`x & `y") means that the fields of both #raw("`x") and #raw("`y")
 are added, while a union tail means that the fields added are the one in both #raw("`x")
 and #raw("`y") (a record type is contravariant in its tail, like its set of keys).
 
@@ -339,12 +341,12 @@ Finally, the `not` type is a negation type intended to be used by the programmer
 The inheritance syntax has a different meaning than in Steep.
 In our new syntax, #box[`class` $C$ `<` $D$] only implies $C$ is a subclass of $D$,
 not that $C$ is a subtype of $D$, whereas `class` $C$ `<:` $D$ means that
-$C$ inherits $D$ _and_ that $C$ is a subtype. In the case that the complete
+$C$ inherits $D$ _and_ that $C$ is a subtype of $D$. In the case that the complete
 signature of $C$ does not allow it to be a subtype of $D$, the type checker rejects it.
 
 We define 2 functions: $[|dot|]_"Ruby"$ which encodes Ruby code as MLsem expressions,
 and $[|dot|]_"RBS"$ which encodes RBS signatures as MLsem types.
-These two functions together should encode the semantics of Ruby programs and types.
+These two functions together encode the semantics of Ruby programs and types.
 We type check using MLsem the concatenation of the translated RBS signatures
 and the translated Ruby code.
 
@@ -356,7 +358,7 @@ For instance, the expression #box[`(x = 12) + x`] evaluates to `24` in Ruby and 
 We call _binding_ expressions which extend the context they are evaluated in.
 MLsem has mutable variables through `let mut` expressions that declare mutable variables
 that can later be assigned to.
-But such binding expressions cannot be directly encoded by MLsem's `let mut` expressions
+But Ruby binding expressions cannot be directly encoded by MLsem's `let mut` expressions
 because their scoping is only local. This is why we use a monad @Moggi to encode variables and scopes.
 
 === The heterogeneous state monad
@@ -400,14 +402,15 @@ To solve this, we introduce the heterogeneous state monad
 Let's unpack this definition.
 The ${ ;; Gamma }$ part is the type of records whose fields are exactly contained in $Gamma$,
 and ${ ;; Gamma #r("&") Delta }$ is ${ ;; Gamma }$ extended by the fields contained in $Delta$.
-Dropping the $mono(R)$ case, we get ${ ;; Gamma } -> (v, { ;; Gamma #r("&") Delta })$,
+Dropping the $mono(R)$ case, we get ${ ;; Gamma } -> mono(V)(v, { ;; Gamma #r("&") Delta })$,
 which is the original state monad modified to allow evaluation to extend by $Delta$
 its state at the type level. This will allow us to precisely encode the scope of variables.
 For instance, for the expression $(x = 42) + y$, we can translate
 the assignment $x = 42$ to an expression of type
-${ ;; Gamma } -> (mono("int"), { x : mono("int") ;; Gamma })$ and $y$ to an expression
-of type ${ y : mono("int") ;; Gamma } -> (mono("int"), { y : mono("int") ;; Gamma })$
-(for some value of $Gamma$). The $mono(R)$ case is to allow encoding of early returns:
+${ ;; Gamma } -> mono(V)(mono("int"), { x : mono("int") ;; Gamma })$ and $y$ to an expression
+of type ${ y : mono("int") ;; Gamma } -> mono(V)(mono("int"), { y : mono("int") ;; Gamma })$
+(for some value of $Gamma$). Here, $mono(V)$ stands for "value".
+The $mono(R)$ case is to allow encoding of early returns:
 we will make this more precise once we have defined the _value_ and _bind_ operations.
 
 *Definition.* The operations associated with the heterogeneous state monad are:
