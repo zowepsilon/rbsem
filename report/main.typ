@@ -597,7 +597,7 @@ Let's take a simple class signature as an example:
   ```
 ]
 
-At the type level, a class generates three types: the types of its instances
+At the type level, a class generates three types: two types of its instances
 and the type of the class singleton. In @intwrappertrans, the `tyClassIntWrapper` type represents the type of the class singleton.
 The fields of the record (except for `__name`) represent the class methods
 of the class. In the case of `IntWrapper`, the only one is `new`, whose type was generated
@@ -843,7 +843,7 @@ the second overload is never considered. This type can be rewritten using inters
 $
   "dom"(#r("T")) &= cases(
     (#r("U")_1, ..., #r("U")_n) &&"if" #r("T") = #r("(")#r("U")_1\, ...\, #r("U")_n#r(") -> R"),
-    "dom"(#r("T")_1) #r("|") "dom"(#r("T")_2) space &&"if" #r("T") = #r("T")_1 amp.inv #r("T")_2,
+  "dom"(#r("T")_1) #r("|") "dom"(#r("T")_2) space &&"if" #r("T") = #r("T")_1 #r("%") #r("T")_2,
     "undefined" &&"otherwise"
   ) \
   "cod"(#r("T")) &= cases(
@@ -1175,7 +1175,7 @@ $
 $
   "dom"(#r("T")) &= cases(
     (#r("U")_1, ..., #r("U")_n) &&"if" #r("T") = #r("(")#r("U")_1\, ...\, #r("U")_n#r(") -> R"),
-    "dom"(#r("T")_1) #r("|") "dom"(#r("T")_2) space &&"if" #r("T") = #r("T")_1 amp.inv #r("T")_2,
+    "dom"(#r("T")_1) #r("|") "dom"(#r("T")_2) space &&"if" #r("T") = #r("T")_1 #r("%") #r("T")_2,
     "undefined" &&"otherwise"
   ) \
   "cod"(#r("T")) &= cases(
@@ -1227,5 +1227,5 @@ Mon stage s'est déroulé à l'IRIF, une unité mixte de recherche
 entre le CNRS et l'Université Paris-Cité. Pendant ce stage
 j'ai pu interagir régulièrement avec mon encadrant et d'autres
 chercheurs de l'IRIF. J'ai aussi pu interagir avec Yaozhu Sun,
-postdoc au National Institute of Informatics à Tokyo,
+post-doctorant au National Institute of Informatics de Tokyo,
 notamment par des appels vidéos hebdomadaires.
