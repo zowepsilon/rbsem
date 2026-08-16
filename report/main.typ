@@ -237,9 +237,10 @@ that have _at least_ the set of specified keys,
 record update #box[```ocaml {t with y : bool}```] which updates
 the type of an existing record type,
 and finally records with a tail #box[```haskell {x : int; y : string ;; <tail>}```]
-where `<tail>` is either a row variable #raw("`x") or a boolean combination of row variables.
+where `<tail>` is either a row variable #raw("`x"), representing an indeterminate
+set of keys, or a boolean combination of row variables.
 An intersection tail #raw("`x & `y") means that the fields of both #raw("`x") and #raw("`y")
-are added, while a union tail means that the fields added are the one in both #raw("`x")
+are added, while an union tail means that the fields added are the one in both #raw("`x")
 and #raw("`y") (a record type is contravariant in its tail, like its set of keys).
 
 = Encoding Ruby in MLsem
@@ -344,7 +345,7 @@ not that $C$ is a subtype of $D$, whereas `class` $C$ `<:` $D$ means that
 $C$ inherits $D$ _and_ that $C$ is a subtype of $D$. In the case that the complete
 signature of $C$ does not allow it to be a subtype of $D$, the type checker rejects it.
 
-We define 2 functions: $[|dot|]_"Ruby"$ which encodes Ruby code as MLsem expressions,
+We define two functions: $[|dot|]_"Ruby"$ which encodes Ruby code as MLsem expressions,
 and $[|dot|]_"RBS"$ which encodes RBS signatures as MLsem types.
 These two functions together encode the semantics of Ruby programs and types.
 We type check using MLsem the concatenation of the translated RBS signatures
@@ -395,7 +396,7 @@ To solve this, we introduce the heterogeneous state monad
 ]:
 
 *Definition.* We define the _heterogeneous state monad_:
-  $ #r("hetState")""(Gamma, Delta, v, r) := &{ ;; Gamma } -> [mono(V)(v, { ;; Gamma #r("&") Delta }) | mono(R)(r)] $
+  $ "hetState"(Gamma, Delta, v, r) := &{ ;; Gamma } -> [mono(V)(v, { ;; Gamma #r("&") Delta }) | mono(R)(r)] $
   where $Gamma, Delta$ are row variables, $v, r$ are type variables
   and $mono(V)(...), mono(R)(...)$ are constructor types.
 
@@ -464,13 +465,13 @@ Finally, we introduce operations for manipulating variables:
   We define an operation for accessing $mono(x)$:
   $
     &"get" mono(x) : "hetState" ({x: alpha, ..}, {}, alpha, #r("empty"))\
-    &"get" mono(x) = lambda s. space mono(V)(s.#r("x"), s) \ 
+    &"get" mono(x) = lambda s. space mono(V)(s.mono(x), s) \ 
   $
 
   As well as one for assigning to $mono(x)$:
   $
-    &"set" mono(x) : alpha -> "hetState" (Gamma, {x: alpha}, alpha, #r("empty")) \
-    &"set" mono(x) space v = lambda s. space mono(V)(v, {s "with" #r("x") = v}]) 
+    &"set" mono(x) : alpha -> "hetState" (Gamma, {mono(x): alpha}, alpha, #r("empty")) \
+    &"set" mono(x) space v = lambda s. space mono(V)(v, {s "with" mono(x) = v}]) 
   $
 
 The types of these operations are precise enough to couple types with control flow:
@@ -479,12 +480,12 @@ when typing branches (such as an `if` or a `case` expression), you get union typ
 #let hS(g, d, v, rr) = $({ ;; #g } -> [mono(V)(#v, { ;; #g #r("&") #d }) | mono(R)(#rr)])$
 
 $
-  &#r("hetState")""(Gamma, Delta_1, v_1, r_1) | #r("hetState")""(Gamma, Delta_2, v_2, r_2) \
+  &"hetState"(Gamma, Delta_1, v_1, r_1) | "hetState"(Gamma, Delta_2, v_2, r_2) \
     &#h(2em) = hS(Gamma, Delta_1, v_1, r_1) | hS(Gamma, Delta_2, v_2, r_2) \
     &#h(2em) <: { ;; Gamma } ->
       [mono(V)(v_1, { ;; Gamma #r("&") Delta_1 }) | mono(V)(v_2, { ;; Gamma #r("&") Delta_2 }) | mono(R)(r_1 | r_2)] \
     &#h(2em) <: { ;; Gamma } -> (mono(V)(v_1 | v_2, { ;; Gamma #r("&") (Delta_1 | Delta_2) }) | mono(R)(r_1 | r_2)) \
-    &#h(2em) <: #r("hetState")""(Gamma, (Delta_1 | Delta_2), (v_1 | v_2), (r_1 | r_2))
+    &#h(2em) <: "hetState"(Gamma, (Delta_1 | Delta_2), (v_1 | v_2), (r_1 | r_2))
 $
 
 Taking the union of the monads is more precise than taking the union of the context and values component-wise.
@@ -1056,7 +1057,7 @@ operational semantics, as this would increase our confidence in the encoding.
 #let bindr = $>>#move(dx: -0.6em)[=]#h(-0.6em)_r#h(0.2em)$
 
 $
-  &#r("hetState")""(Gamma, Delta, v, r) := { ;; Gamma } -> [mono(V)(v, { ;; Gamma #r("&") Delta }) | mono(R)(r)] \
+  &"hetState"(Gamma, Delta, v, r) := { ;; Gamma } -> [mono(V)(v, { ;; Gamma #r("&") Delta }) | mono(R)(r)] \
   &#h(3em) "where" Gamma, Delta  "are row variables and" v, r "are type variables."
 $
   
