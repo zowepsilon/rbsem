@@ -67,12 +67,13 @@ module Rbs = struct
   and fun_ty = ty list * ty
   [@@deriving show]
 
-  type decl = Decl of class_name * class_name option * member list
+  type decl = Decl of class_name * inheritance * member list
   and member =
     | MemMeth of fun_name * ty 
     | MemInit of ty
     | MemClassMeth of fun_name * ty
     | MemAttr of var_name * ty
+  and inheritance = InheritNone | InheritSubclass of class_name | InheritSubtype of class_name
   [@@deriving show]
 
   type program = decl list

@@ -29,6 +29,7 @@ rule token = parse
   | '('               { LPAREN }
   | ')'               { RPAREN }
   | '='               { EQ }
+  | "<:"              { SUB }
   | '<'               { LT }
   | '.'               { DOT }
   | '@'               { AT }
@@ -42,7 +43,7 @@ rule token = parse
 (*| ';'               { SEQ }*)
 (*| ','               { COMMA }*)
 (*| '"'               { string "" lexbuf }*)
-  | '#'               { comment lexbuf; token lexbuf }
+  | '#'               { comment lexbuf; update_loc lexbuf ~lines:1 ~chars:0; if !ignore_newlines then token lexbuf else NEWLINE }
   | "class"           { KW_CLASS }
   | "def"             { KW_DEF }
   | "end"             { KW_END }
@@ -69,8 +70,8 @@ rule token = parse
 
 and comment = parse
   | "\n" { () }
-  | eof { () }
-  | _ { comment lexbuf }
+  | eof  { () }
+  | _    { comment lexbuf }
 
 (*
 and string contents = parse

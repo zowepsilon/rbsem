@@ -1,5 +1,5 @@
 class A
-  def eq: (self) -> Bool
+  def eq: (self) -> bool
 end
 
 class B < A

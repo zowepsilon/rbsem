@@ -1,5 +1,7 @@
 # RbSem
 
+A formal description of the translation can be found [here](report/main.pdf).
+
 ### Usage
 
 You must provide both a ruby file and a RBS file, formatted as `my_file.rb` and `my_file.rbs` in the same directory.
@@ -26,9 +28,6 @@ The output is intended to be pasted into [MLSem](https://e-sh4rk.github.io/MLsem
 Several tests are available in the [`test/`](test/) folder.
 
 ### TODO
-- use and in type declarations
-- `>` and `:>`
-
 - some binary operations for testing
 - automatic attr analysis
 - attr_reader/attr_writer/attr_accessor

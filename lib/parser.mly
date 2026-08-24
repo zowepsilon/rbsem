@@ -33,6 +33,7 @@ let rec or_to_meth_and ty =
 %token NEWLINE
 %token LPAREN RPAREN
 %token LT
+%token SUB
 %token DOT
 %token AT
 %token EQ
@@ -121,9 +122,14 @@ lit:
 rbs_program: p=list(declaration) EOF { p }
 
 declaration:
-  KW_CLASS name=CLASS_IDENT sup=option(LT sup=CLASS_IDENT { sup })
+  KW_CLASS name=CLASS_IDENT sup=inheritance
   members=list(member) KW_END
     { Rbs.Decl (name, sup, members) } 
+
+inheritance:
+  |                     { Rbs.InheritNone }
+  | LT sup=CLASS_IDENT  { Rbs.InheritSubclass sup }
+  | SUB sup=CLASS_IDENT { Rbs.InheritSubtype sup }
 
 member:
   | KW_DEF f=IDENT COLON t=ty             { Rbs.MemMeth (f, or_to_meth_and t) }

@@ -1,0 +1,13 @@
+class A
+  def eq: (self) -> bool
+end
+
+class B <: A
+  #def eq: (self) -> bool
+end
+
+class C <: B
+end
+
+class D <: A
+end

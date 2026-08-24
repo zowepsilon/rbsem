@@ -18,6 +18,10 @@ let name_subtyping_class_ty name = "Class__" ^ name
 
 
 let name_subtyping_field = "__name"
+let check_val_ident_count = ref 0
+let check_val_ident () =
+  incr check_val_ident_count;
+  "__checkSubtype" ^ (string_of_int !check_val_ident_count)
 let name_subtyping_symbol = "DummySymbol"
 let default_env_name = "env"
 
@@ -60,12 +64,19 @@ module Rbs = struct
     p |> List.iter (fun d ->
       let Rbs.Decl (name, parent, _) = d in
       match parent with
-      | None -> Hashtbl.add registry name []
-      | Some parent ->
-          match Hashtbl.find_opt registry parent with
+      | InheritNone -> Hashtbl.add registry name []
+      | InheritSubclass parent ->
+          begin match Hashtbl.find_opt registry parent with
           | None -> failwith ("unknown super class: " ^ name ^ " < " ^ parent)
           | Some inheritance ->
               Hashtbl.add registry name (parent :: inheritance)
+          end
+      | InheritSubtype parent ->
+          begin match Hashtbl.find_opt registry parent with
+          | None -> failwith ("unknown super class: " ^ name ^ " <: " ^ parent)
+          | Some inheritance ->
+              Hashtbl.add registry name (parent :: inheritance)
+          end
     );
     registry
 
@@ -130,13 +141,24 @@ module Rbs = struct
     let members = (name_subtyping_field, TyNot (nominal_symbol_inst registry name)) :: List.rev members in
     let class_ty_rec_name = class_ty_rec name in
     let class_ty_name = class_ty name in
-    let recTy = TLTy [class_ty_rec_name, ["self"], TyRecord (
-      Option.map (fun parent -> TyConstr (class_ty_rec parent, TyVar "self")) parent,
+    let recTy = (class_ty_rec_name, ["self"], TyRecord (
+      (match parent with
+      | InheritNone -> None
+      | (InheritSubclass parent) | (InheritSubtype parent) -> Some (TyName (class_ty parent))
+      ),
       members,
-      (match parent with None -> TailOpen | Some _ -> NoTail)
-    )] in
-    let closedTy = TLTy [class_ty_name, [], TyConstr (class_ty_rec_name, TyName class_ty_name)] in
-    [recTy; closedTy]
+      (match parent with InheritNone -> TailOpen | _ -> NoTail)
+    )) in
+    let closedTy = (class_ty_name, [], TyConstr (class_ty_rec_name, TyName class_ty_name)) in
+    match parent with
+    | InheritSubtype parent ->
+        [
+          TLTy [recTy; closedTy];
+          TLLet (check_val_ident (),
+            Cast (Cast (Var "opaque", TyName class_ty_name), TyName (class_ty parent))
+          )
+        ]
+    | _ -> [TLTy [recTy; closedTy]]
 
   let decl_class (registry : inheritance_registry) (d : Rbs.decl) : top_level =
     let Decl (name, parent, members) = d in
@@ -146,9 +168,12 @@ module Rbs = struct
     ) [] members in
     let members = (name_subtyping_field, TyNot (nominal_symbol_class registry name)) :: List.rev members in
     let classTy = TLTy [class_singleton_ty name, [], TyRecord (
-      Option.map (fun parent -> TyName (class_singleton_ty parent)) parent,
+      (match parent with
+      | InheritNone -> None
+      | (InheritSubclass parent) | (InheritSubtype parent) -> Some (TyName (class_singleton_ty parent))
+      ),
       members,
-      (match parent with None -> TailOpen | Some _ -> NoTail)
+      (match parent with InheritNone -> TailOpen | _ -> NoTail)
     )] in
     classTy
 

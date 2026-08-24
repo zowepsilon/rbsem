@@ -449,14 +449,22 @@ and display_top_level (tl : MlSem.top_level) : (int * string) list =
       ) else (
         t |> append_prefix prefix
       )
-  | TLTy [(ty_name, ty_vars, ty)] ->
-      let prefix =
-        if ty_vars = []
-        then "type " ^ ty_name ^ " = "
-        else "type " ^ ty_name ^ "('" ^ String.concat ", '" ty_vars ^ ") = "
-      in
-      display_ty ty |> append_prefix prefix
-  | TLTy _ -> failwith "TODO"
+  | TLTy (ty_decl :: rest) ->
+      display_toplevel_ty "type " ty_decl
+      @ List.concat_map (display_toplevel_ty "and ") rest
+  | TLTy [] -> failwith "empty TLTy"
+
+and display_toplevel_ty
+    (prefix : string)
+    ((ty_name, ty_vars, ty): var_name * var_name list * MlSem.ty)
+    : (int * string) list =
+  let prefix =
+    if ty_vars = []
+    then prefix ^ ty_name ^ " = "
+    else prefix ^ ty_name ^ "('" ^ String.concat ", '" ty_vars ^ ") = "
+  in
+  display_ty ty |> append_prefix prefix
+  
 
 and print_display (channel : out_channel): (int * string) list -> unit =
   function
