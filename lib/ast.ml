@@ -73,7 +73,10 @@ module Rbs = struct
     | MemInit of ty
     | MemClassMeth of fun_name * ty
     | MemAttr of var_name * ty
-  and inheritance = InheritNone | InheritSubclass of class_name | InheritSubtype of class_name
+  and inheritance =
+    | InheritNone
+    | InheritSubclass of class_name
+    | InheritSubtype of class_name
   [@@deriving show]
 
   type program = decl list
